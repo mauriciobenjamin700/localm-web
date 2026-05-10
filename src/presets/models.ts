@@ -52,9 +52,7 @@ export function resolveModelPreset(modelId: string): ModelPreset {
   const preset = MODEL_PRESETS[modelId];
   if (!preset) {
     const available = Object.keys(MODEL_PRESETS).join(", ");
-    throw new UnknownModelError(
-      `Unknown model "${modelId}". Available models: ${available}.`
-    );
+    throw new UnknownModelError(`Unknown model "${modelId}". Available models: ${available}.`);
   }
   return preset;
 }

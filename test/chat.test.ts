@@ -2,11 +2,7 @@ import { describe, it, expect } from "vitest";
 import { Chat } from "../src/tasks/chat";
 import { collectStream } from "../src/streaming/token-stream";
 import type { Engine } from "../src/core/engine";
-import type {
-  GenerationOptions,
-  Message,
-  TokenChunk,
-} from "../src/types";
+import type { GenerationOptions, Message, TokenChunk } from "../src/types";
 
 class FakeEngine implements Engine {
   loaded: boolean = true;
@@ -28,10 +24,7 @@ class FakeEngine implements Engine {
     return `echo:${messages[messages.length - 1]?.content ?? ""}`;
   }
 
-  async *stream(
-    messages: Message[],
-    options?: GenerationOptions
-  ): AsyncIterable<TokenChunk> {
+  async *stream(messages: Message[], options?: GenerationOptions): AsyncIterable<TokenChunk> {
     this.lastMessages = messages;
     this.lastOptions = options;
     const reply = `echo:${messages[messages.length - 1]?.content ?? ""}`;
@@ -74,11 +67,7 @@ describe("Chat", () => {
     const chat = await Chat.create("phi-3.5-mini-int4", { engine });
     await chat.send("first");
     await chat.send("second");
-    expect(engine.lastMessages.map((m) => m.content)).toEqual([
-      "first",
-      "echo:first",
-      "second",
-    ]);
+    expect(engine.lastMessages.map((m) => m.content)).toEqual(["first", "echo:first", "second"]);
   });
 
   it("setSystemPrompt() prepends a system message", async () => {

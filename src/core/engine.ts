@@ -1,9 +1,4 @@
-import type {
-  GenerationOptions,
-  Message,
-  ProgressCallback,
-  TokenChunk,
-} from "../types";
+import type { GenerationOptions, Message, ProgressCallback, TokenChunk } from "../types";
 
 /**
  * Runtime-agnostic inference contract.
@@ -43,10 +38,7 @@ export interface Engine {
    * @throws ModelNotLoadedError if called before {@link Engine.load}.
    * @throws GenerationAbortedError if `options.signal` is triggered.
    */
-  stream(
-    messages: Message[],
-    options?: GenerationOptions
-  ): AsyncIterable<TokenChunk>;
+  stream(messages: Message[], options?: GenerationOptions): AsyncIterable<TokenChunk>;
 
   /** Release any resources held by the engine. Safe to call when not loaded. */
   unload(): Promise<void>;

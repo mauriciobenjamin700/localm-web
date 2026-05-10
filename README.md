@@ -24,11 +24,11 @@ The Python ecosystem for local Language Models is saturated: `llama-cpp-python`,
 
 The **browser side is different**. The closest equivalents are:
 
-| Project | What it is | Why it's not enough |
-|---------|------------|---------------------|
-| [WebLLM (MLC)](https://github.com/mlc-ai/web-llm) | Best-in-class WebGPU runtime | Engine-centric, low-level API, no opinionated tasks |
+| Project                                                           | What it is                     | Why it's not enough                                               |
+| ----------------------------------------------------------------- | ------------------------------ | ----------------------------------------------------------------- |
+| [WebLLM (MLC)](https://github.com/mlc-ai/web-llm)                 | Best-in-class WebGPU runtime   | Engine-centric, low-level API, no opinionated tasks               |
 | [transformers.js](https://github.com/huggingface/transformers.js) | HF pipeline API in the browser | Slower (no WebGPU-first compilation in many paths), broad surface |
-| `onnxruntime-genai-web` | Microsoft's web LM build | Preview, unstable, no high-level tasks |
+| `onnxruntime-genai-web`                                           | Microsoft's web LM build       | Preview, unstable, no high-level tasks                            |
 
 There is no opinionated, task-oriented, strict-typed, **Ultralytics-style SDK that just works in a Vite app**. `localm-web` fills that gap.
 
@@ -47,6 +47,7 @@ The mental model is straightforward: if [`ort-vision-sdk-web`](https://github.co
 ## Scope
 
 ### In scope
+
 - Browser-only execution (WebGPU primary, WASM-SIMD fallback from v0.5).
 - High-level tasks: `Chat`, `Completion`, `Embeddings`, `Reranker`.
 - Streaming token output via async generators with `AbortSignal` support.
@@ -57,6 +58,7 @@ The mental model is straightforward: if [`ort-vision-sdk-web`](https://github.co
 - Web Worker execution out of the box.
 
 ### Out of scope
+
 - Server-side execution (Node, Bun, Deno).
 - Training, fine-tuning, LoRA loading.
 - Multi-modal models at v1.0 (a future composite SDK may combine `ort-vision-sdk-web` + `localm-web`).
@@ -142,15 +144,15 @@ The shape mirrors `ort-vision-sdk-web`: `await Class.create(model)` then `predic
 
 ## Versioning roadmap
 
-| Version | Scope |
-|---------|-------|
-| **v0.1** | `Chat` via WebLLM. Phi-3.5-mini, Llama-3.2-1B, Qwen2.5-1.5B. Streaming with `AbortSignal`. |
+| Version  | Scope                                                                                        |
+| -------- | -------------------------------------------------------------------------------------------- |
+| **v0.1** | `Chat` via WebLLM. Phi-3.5-mini, Llama-3.2-1B, Qwen2.5-1.5B. Streaming with `AbortSignal`.   |
 | **v0.2** | `Completion` task. Model caching (Cache API + OPFS). Web Worker by default. Progress events. |
-| **v0.3** | `Embeddings` and `Reranker` tasks. BGE family via transformers.js. |
-| **v0.4** | Structured output (JSON Schema → grammar / logit masking). |
-| **v0.5** | ORT-Web fallback for browsers without WebGPU. Auto-detection and graceful degradation. |
-| **v0.6** | Function calling helper (tool use with schema-validated arguments). |
-| **v1.0** | Documentation site, runnable demos, stable API contract. |
+| **v0.3** | `Embeddings` and `Reranker` tasks. BGE family via transformers.js.                           |
+| **v0.4** | Structured output (JSON Schema → grammar / logit masking).                                   |
+| **v0.5** | ORT-Web fallback for browsers without WebGPU. Auto-detection and graceful degradation.       |
+| **v0.6** | Function calling helper (tool use with schema-validated arguments).                          |
+| **v1.0** | Documentation site, runnable demos, stable API contract.                                     |
 
 ## Browser support
 
@@ -180,6 +182,35 @@ Three reasons:
 1. **Mature alternatives exist.** Python and TS already have excellent server-side LM tooling (Ollama, vLLM, llama-cpp-python, transformers, llama.cpp Node bindings). Adding another wrapper is noise.
 2. **The browser is the underserved surface.** Running models on the user's device removes the server cost, keeps data local, and unlocks offline use cases — but the DX is currently rough.
 3. **Different concerns.** Server inference cares about throughput, batching, multi-tenant scheduling. Browser inference cares about cold-start time, model caching, UI thread isolation, WebGPU compatibility. Conflating them produces a bad SDK on both sides.
+
+## Security
+
+`localm-web` is a browser SDK — its dependencies execute in your users' browsers. Two layers, treated differently:
+
+| Layer               | What it is                              | Vuln policy                                                                             |
+| ------------------- | --------------------------------------- | --------------------------------------------------------------------------------------- |
+| **Runtime** (peers) | `@mlc-ai/web-llm`, future runtime peers | **Zero known CVEs.** Releases are blocked if `npm audit --omit=dev` reports anything.   |
+| **Dev tooling**     | Vite, Vitest, ESLint, esbuild, etc.     | Fixed promptly via dependency bumps or `overrides`. Never reaches the published bundle. |
+
+### Reporting vulnerabilities
+
+If you find a vulnerability in `localm-web` itself (not in a transitive dep), open a private security advisory at <https://github.com/mauriciobenjamin700/localm-web/security/advisories/new>. Please don't open public issues for unpatched runtime vulns.
+
+### What we do on every release
+
+- `npm ci` (locked install — no drift between dev machine and CI).
+- `npm audit` reviewed manually; nothing handwaved.
+- ESM-only build, no eval / `Function()` / dynamic remote code.
+- Signed publish via `npm publish --provenance` (provenance attestation visible on the npm package page).
+
+### What you should do as a consumer
+
+- Pin the SDK version (`localm-web@x.y.z`, not `^x.y.z`) until you've validated a release.
+- Self-host model weights or use Subresource Integrity (SRI) when the runtime fetches them — model URLs are external.
+- Models are cached locally (Cache API + OPFS) — surface this in your app's privacy policy.
+- Run inference inside a Web Worker (the SDK does this by default from v0.2). Don't bypass it to "save a thread" — it isolates faulty model code from your UI.
+
+The full maintainer policy lives in [CLAUDE.md → Security & vulnerabilities](./CLAUDE.md#security--vulnerabilities).
 
 ## Contributing
 

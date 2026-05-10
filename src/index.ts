@@ -12,11 +12,7 @@ export type { LMTaskCreateOptions } from "./tasks/lm-task";
 
 export { ChatReply } from "./results";
 
-export {
-  MODEL_PRESETS,
-  resolveModelPreset,
-  listSupportedModels,
-} from "./presets/models";
+export { MODEL_PRESETS, resolveModelPreset, listSupportedModels } from "./presets/models";
 
 export {
   LocalmWebError,

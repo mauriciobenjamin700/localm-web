@@ -1,9 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
-  MODEL_PRESETS,
-  listSupportedModels,
-  resolveModelPreset,
-} from "../src/presets/models";
+import { MODEL_PRESETS, listSupportedModels, resolveModelPreset } from "../src/presets/models";
 import { UnknownModelError } from "../src/core/exceptions";
 
 describe("MODEL_PRESETS", () => {
@@ -39,9 +35,7 @@ describe("resolveModelPreset", () => {
   });
 
   it("throws UnknownModelError for an unknown id", () => {
-    expect(() => resolveModelPreset("not-a-real-model")).toThrow(
-      UnknownModelError
-    );
+    expect(() => resolveModelPreset("not-a-real-model")).toThrow(UnknownModelError);
   });
 
   it("UnknownModelError message lists available models", () => {
@@ -56,8 +50,6 @@ describe("resolveModelPreset", () => {
 
 describe("listSupportedModels", () => {
   it("returns the registry keys", () => {
-    expect(listSupportedModels().sort()).toEqual(
-      Object.keys(MODEL_PRESETS).sort()
-    );
+    expect(listSupportedModels().sort()).toEqual(Object.keys(MODEL_PRESETS).sort());
   });
 });
