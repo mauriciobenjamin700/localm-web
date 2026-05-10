@@ -7,6 +7,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **`LMTaskCreateOptions.inWorker` default flipped from `false` to `true`.**
+  `Chat.create()` and `Completion.create()` now spawn a Web Worker by
+  default, isolating tokenization and WebGPU dispatches from the UI
+  thread. Pass `inWorker: false` explicitly to revert to main-thread
+  inference (useful in environments without `Worker` support or when
+  debugging the runtime). The fast path for opting out is unchanged
+  in shape — only the default differs. Pre-1.0 SDK; consumers
+  upgrading from v0.2 will silently move inference off the main
+  thread, which is desirable for almost every app.
+
+### Added
+
+- `Embeddings` task in `src/tasks/embeddings.ts` — sentence embeddings
+  via `@huggingface/transformers`. `Embeddings.create(modelId, options?)`
+  returns an instance; `embed(texts: string[], options?)` returns
+  `number[][]`; `embedSingle(text)` returns `number[]`. Empty input
+  yields `[]` (per project convention — no NotFoundError on empty).
+  Default pooling `"mean"`, default `normalize: true`.
+- `EMBEDDING_PRESETS` registry with `bge-small-en-v1.5` (384-dim) and
+  `bge-base-en-v1.5` (768-dim). `resolveEmbeddingPreset(id)` and
+  `listSupportedEmbeddingModels()` helpers.
+- Public types: `EmbeddingPreset`, `EmbeddingsCreateOptions`,
+  `EmbedOptions`, `EmbedPipeline` (DI hook for tests).
+- `Reranker` task in `src/tasks/reranker.ts` — cross-encoder reranking
+  via `@huggingface/transformers`. `Reranker.create(modelId, options?)`
+  returns an instance; `score(query, docs, options?)` returns
+  `number[]` (raw logits, or sigmoid-mapped to `[0, 1]` when
+  `sigmoid: true`); `rank(query, docs, options?)` returns
+  `RankedDocument[]` sorted descending by score with the original
+  index preserved. Empty `docs` yields `[]`.
+- `RERANKER_PRESETS` registry with `bge-reranker-base`.
+  `resolveRerankerPreset(id)` and `listSupportedRerankerModels()`
+  helpers. Public type `RerankerPreset`.
+- Public types: `RerankerCreateOptions`, `RerankOptions`,
+  `RerankPipeline`, `RankedDocument`.
+- `peerDependenciesMeta` marks `@huggingface/transformers` as
+  optional — Chat / Completion users do not need to install it.
+- 10 unit tests in `test/embeddings.test.ts` covering registry
+  resolution, batch + single embedding, empty input short-circuit,
+  pooling / normalize defaults and overrides, unload delegation,
+  graceful unload when pipeline omits `unload()`.
+- 10 unit tests in `test/reranker.test.ts` covering registry
+  resolution, score order preservation, empty input short-circuit,
+  sigmoid normalization, default raw-logit output, descending sort
+  in `rank()`, unload delegation, graceful unload without
+  `unload()`.
+
+## [0.2.0] - 2026-05-10
+
 ### Added
 
 - `docs/getting-started.md` v0.3 update — new sections covering
