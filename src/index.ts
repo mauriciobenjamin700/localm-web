@@ -41,4 +41,4 @@ export type {
 } from "./types";
 
 /** Current package version. Updated at release time. */
-export const VERSION: string = "0.0.1";
+export const VERSION: string = "0.1.0";
