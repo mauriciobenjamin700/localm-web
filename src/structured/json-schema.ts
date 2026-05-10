@@ -25,9 +25,7 @@ import { StructuredOutputError } from "../core/exceptions";
  */
 export function assertJsonSchema(schema: unknown): asserts schema is object {
   if (schema === null || typeof schema !== "object" || Array.isArray(schema)) {
-    throw new StructuredOutputError(
-      "jsonSchema must be a plain object describing a JSON Schema."
-    );
+    throw new StructuredOutputError("jsonSchema must be a plain object describing a JSON Schema.");
   }
   const keys: string[] = Object.keys(schema);
   const recognized: readonly string[] = [

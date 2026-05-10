@@ -1,6 +1,6 @@
 {
   "name": "localm-web",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Browser-only TypeScript SDK for running LLMs and SLMs locally with WebGPU. Ultralytics-style DX, Vite-first.",
   "type": "module",
   "main": "./dist/index.js",

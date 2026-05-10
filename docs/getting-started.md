@@ -169,10 +169,9 @@ Use when you want a JSON object but you don't care about the exact shape:
 import { Chat } from "localm-web";
 
 const chat = await Chat.create("phi-3.5-mini-int4");
-const reply = await chat.send(
-  "List three pros and three cons of WebGPU as a JSON object.",
-  { json: true }
-);
+const reply = await chat.send("List three pros and three cons of WebGPU as a JSON object.", {
+  json: true,
+});
 
 const data = reply.json<{ pros: string[]; cons: string[] }>();
 console.log(data.pros, data.cons);
