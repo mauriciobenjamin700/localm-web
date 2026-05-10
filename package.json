@@ -31,8 +31,8 @@
     "clean": "rm -rf dist"
   },
   "peerDependencies": {
-    "@mlc-ai/web-llm": "^0.2.79",
-    "@huggingface/transformers": "^4.2.0"
+    "@huggingface/transformers": "^4.2.0",
+    "@mlc-ai/web-llm": "^0.2.79"
   },
   "peerDependenciesMeta": {
     "@huggingface/transformers": {
