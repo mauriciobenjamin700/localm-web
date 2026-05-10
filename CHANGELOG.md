@@ -42,6 +42,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (~6.5 MB pre-gzip, only fetched when `inWorker: true`) for a clean DX
   (no consumer-side worker config). The main `dist/index.js` stays at
   ~16 kB and webllm remains a peer dep there.
+- `engines.node` bumped from `>=18.0.0` to `>=20.19.0`. Vite 7's worker
+  bundler depends on `crypto.hash()` which lands in Node 19; Node 18
+  also reaches end-of-life on 2025-04-30 per the Node release schedule.
+- CI matrix dropped Node 18, kept 20 + 22.
 
 ## [0.1.0] - 2026-05-10
 
