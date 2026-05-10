@@ -55,18 +55,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sigmoid normalization, default raw-logit output, descending sort
   in `rank()`, unload delegation, graceful unload without
   `unload()`.
-
-## [0.2.0] - 2026-05-10
-
-### Added
-
 - `docs/getting-started.md` v0.3 update — new sections covering
   Embeddings, Reranker, the retrieve-then-rerank pattern, the
   embedding / reranker registries, and the new Web-Worker-by-default
   behavior. Existing sections (model registry, downloads, cache,
   troubleshooting) carry over unchanged.
 
-### Added (v0.2 carryover)
+## [0.2.0] - 2026-05-10
+
+### Added
 
 - `docs/getting-started.md` — end-to-end guide covering prerequisites,
   install, first chat snippet, the curated model registry with download /
