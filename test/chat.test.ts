@@ -36,6 +36,22 @@ class FakeEngine implements Engine {
     yield { text: "", index, done: true };
   }
 
+  async complete(prompt: string, options?: GenerationOptions): Promise<string> {
+    this.lastOptions = options;
+    return `echo:${prompt}`;
+  }
+
+  async *streamCompletion(prompt: string, options?: GenerationOptions): AsyncIterable<TokenChunk> {
+    this.lastOptions = options;
+    const reply = `echo:${prompt}`;
+    let index: number = 0;
+    for (const ch of reply) {
+      yield { text: ch, index, done: false };
+      index += 1;
+    }
+    yield { text: "", index, done: true };
+  }
+
   async unload(): Promise<void> {
     this.unloadCalls += 1;
     this.loaded = false;

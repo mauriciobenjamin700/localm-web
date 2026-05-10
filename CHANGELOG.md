@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `Completion` task for raw text continuation (no chat template, no history).
+  Exposes `predict()` returning a `CompletionResult` and `stream()` yielding
+  `TokenChunk` async iterable. Mirrors the `Chat` task DX.
+- `CompletionResult` class in `src/results.ts` — holds the generated text,
+  the original prompt, tokens generated and finish reason.
+- `Engine.complete()` and `Engine.streamCompletion()` methods on the
+  runtime-agnostic engine contract. `WebLLMEngine` implements both via
+  `engine.completions.create()` (raw text mode, bypasses chat template).
+
 ## [0.1.0] - 2026-05-10
 
 ### Added
