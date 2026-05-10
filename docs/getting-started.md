@@ -1,0 +1,316 @@
+# Getting started
+
+A practical walkthrough for downloading a model and running your first prompt locally with `localm-web`. Everything runs in the user's browser — no server, no API key, no roundtrip.
+
+> **Audience:** developers integrating `localm-web` into a Vite + TypeScript app. If you only want to play with the SDK before writing code, jump to [Run the example app](#run-the-example-app).
+
+## Table of contents
+
+- [Prerequisites](#prerequisites)
+- [Install](#install)
+- [First chat in 10 lines](#first-chat-in-10-lines)
+- [Available models](#available-models)
+- [How a model downloads](#how-a-model-downloads)
+- [Where the model lives on disk](#where-the-model-lives-on-disk)
+- [Run the example app](#run-the-example-app)
+- [Cold start, RAM and what to expect](#cold-start-ram-and-what-to-expect)
+- [Inspect, clear and re-download](#inspect-clear-and-re-download)
+- [Offline behavior](#offline-behavior)
+- [Troubleshooting](#troubleshooting)
+
+## Prerequisites
+
+| Requirement                                                                          | Why                                                                                                          |
+| ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------ |
+| **Chrome 113+ / Edge 113+ / Safari 18+ / Firefox Nightly with `dom.webgpu.enabled`** | The SDK runs models on the GPU via WebGPU. The WASM fallback lands in v0.5; until then, WebGPU is mandatory. |
+| **HTTPS or `localhost`**                                                             | WebGPU is gated to secure contexts. `vite dev` serves on `localhost` so this is automatic in development.    |
+| **8 GB RAM minimum, 16 GB recommended**                                              | Quantized SLMs need 1–4 GB of GPU memory plus a few hundred MB for the runtime.                              |
+| **Stable network for the first load**                                                | Weights are downloaded from a public CDN (HuggingFace mirror). Subsequent loads come from the local cache.   |
+| **Node 18+ for the dev workflow**                                                    | The SDK itself is browser-only, but the build tooling (Vite, Vitest) needs Node.                             |
+
+To confirm WebGPU is enabled in your browser, open the DevTools console and run:
+
+```js
+console.log("gpu" in navigator); // true means you're good
+```
+
+If it returns `false`, see [Troubleshooting → WebGPU unavailable](#troubleshooting).
+
+## Install
+
+```bash
+npm install localm-web @mlc-ai/web-llm
+```
+
+`@mlc-ai/web-llm` is a **peer dependency** — you pin the version, the SDK doesn't bundle it. This keeps the package light and lets you upgrade WebLLM independently.
+
+If you use pnpm or yarn, the same shape applies:
+
+```bash
+pnpm add localm-web @mlc-ai/web-llm
+yarn add localm-web @mlc-ai/web-llm
+```
+
+## First chat in 10 lines
+
+Create a TypeScript file in your Vite app (e.g. `src/chat-demo.ts`) and import the SDK:
+
+```typescript
+import { Chat } from "localm-web";
+
+const chat = await Chat.create("llama-3.2-1b-int4", {
+  onProgress: (p) => console.log(`${p.phase} ${(p.progress * 100).toFixed(0)}%`),
+});
+
+for await (const token of chat.stream("Explain WebGPU in one sentence.")) {
+  process.stdout.write(token.text);
+}
+```
+
+That's it. The first call to `Chat.create` downloads ~700 MB of weights for `llama-3.2-1b-int4`, compiles the WebGPU shaders, and returns a ready-to-use chat instance. Subsequent calls skip the download.
+
+For raw text continuation (no chat template, no history), use `Completion`:
+
+```typescript
+import { Completion } from "localm-web";
+
+const comp = await Completion.create("qwen2.5-1.5b-int4");
+const result = await comp.predict("Once upon a time", { maxTokens: 60 });
+console.log(result.text);
+```
+
+## Available models
+
+The SDK ships with a curated registry. Every entry has been validated to load in WebGPU-enabled browsers and to fit the SLM target (≤ 4B parameters at INT4):
+
+| Friendly id         | Family    | Params | Approx download | Approx GPU RAM | Use it for                                                                |
+| ------------------- | --------- | ------ | --------------- | -------------- | ------------------------------------------------------------------------- |
+| `llama-3.2-1b-int4` | Llama 3.2 | 1.0 B  | ~700 MB         | ~1.2 GB        | Smallest viable chat. Fast on integrated GPUs.                            |
+| `qwen2.5-1.5b-int4` | Qwen 2.5  | 1.5 B  | ~1.0 GB         | ~1.6 GB        | Strong multilingual + code. Solid sweet spot.                             |
+| `phi-3.5-mini-int4` | Phi-3.5   | 3.8 B  | ~2.2 GB         | ~3.5 GB        | Highest quality in the registry. Needs a discrete GPU or high-RAM laptop. |
+
+Get the full list at runtime:
+
+```typescript
+import { listSupportedModels, MODEL_PRESETS } from "localm-web";
+
+console.log(listSupportedModels()); // ["phi-3.5-mini-int4", "llama-3.2-1b-int4", "qwen2.5-1.5b-int4"]
+console.log(MODEL_PRESETS["llama-3.2-1b-int4"]);
+// { id, family, parameters, quantization, webllmId, contextWindow, description }
+```
+
+The registry will grow over v0.2–v0.5 to cover Phi-3.5, Llama-3.2-3B, Qwen2.5-0.5B / 3B, Gemma-2-2B and SmolLM2.
+
+## How a model downloads
+
+1. **Resolve.** `Chat.create("llama-3.2-1b-int4", …)` looks up the friendly id in the registry and resolves the underlying WebLLM (MLC) identifier.
+2. **Fetch.** WebLLM downloads weight shards (`*.bin`), the tokenizer (`tokenizer.json`) and metadata from the public MLC HuggingFace mirror. Files are streamed in parallel.
+3. **Cache.** Each file is stored in the browser's [Cache API](https://developer.mozilla.org/en-US/docs/Web/API/Cache) under the origin that loaded the SDK. Total size for a 1 B INT4 model is ~700 MB.
+4. **Compile.** WebGPU shaders are compiled. This is one-time-per-browser-session for new model architectures.
+5. **Ready.** The engine emits a `ModelLoadProgress` event with `phase: "ready"` exactly once.
+
+While the download is in flight you receive granular progress events:
+
+```typescript
+await Chat.create("llama-3.2-1b-int4", {
+  onProgress: (p) => {
+    // p.phase is one of: "downloading" | "compiling" | "loading" | "ready"
+    // p.progress is in [0, 1]
+    // p.text is the runtime's free-form status (e.g. "Fetching param shard 12/24")
+    updateUI(p);
+  },
+});
+```
+
+The `phase` field lets you drive UI state machines without parsing strings — a typical pattern is showing a spinner during `downloading`, swapping to a determinate progress bar with `progress`, and displaying a "ready" badge when `phase === "ready"`.
+
+## Where the model lives on disk
+
+Weights are persisted by the browser, scoped to the origin (protocol + host + port) that loaded the SDK. This means:
+
+- **Per-origin cache.** A model downloaded on `https://app-a.example.com` is not visible to `https://app-b.example.com` even if both use the same `localm-web` version.
+- **Per-browser cache.** The Chrome cache, Firefox cache and Safari cache are all separate. Switching browsers re-downloads the model.
+- **Per-profile cache.** Browser profiles (Chrome's "person 1", "person 2") have isolated storage.
+
+Storage backends (current and planned):
+
+| Backend                           | Status                             | Used for                                        |
+| --------------------------------- | ---------------------------------- | ----------------------------------------------- |
+| Cache API                         | v0.1+ (current default via WebLLM) | Weight shards, tokenizer.json                   |
+| OPFS (Origin Private File System) | v0.2 (planned)                     | Models > 1 GB; faster reads + structured layout |
+| IndexedDB                         | not used                           | —                                               |
+
+You can inspect the Cache API contents from DevTools: **Application → Storage → Cache Storage**.
+
+## Run the example app
+
+The repository ships a runnable Vite app under [`examples/vite-chat/`](../examples/vite-chat/) so you can experiment with the SDK before integrating it.
+
+```bash
+git clone https://github.com/mauriciobenjamin700/localm-web.git
+cd localm-web
+
+# install workspace deps once
+npm ci
+
+# run the example
+cd examples/vite-chat
+npm install
+npm run dev
+```
+
+Open the printed URL (usually `http://localhost:5173`). Pick a model from the dropdown, click **Load**, watch the progress bar, then send prompts. The example exercises:
+
+- Loading any registry model with progress events.
+- Streaming generation token-by-token.
+- Aborting an in-flight stream via `AbortController`.
+
+The example is intentionally plain HTML + a single `main.ts` — no framework, no styles. Read the source: it's < 100 lines and mirrors what your integration code will look like.
+
+### Iterating without re-downloading
+
+When you reload `localhost:5173`, the model **stays cached**. You only pay the download cost once per browser. Switching models triggers a fresh download for the new model only — the previously loaded one stays in the cache.
+
+If you want to force a clean download (e.g. to test the cold-start UX), see [Inspect, clear and re-download](#inspect-clear-and-re-download).
+
+## Cold start, RAM and what to expect
+
+Rough numbers from a 2024-era laptop with a discrete GPU on Chrome 130+:
+
+| Step                        | First time   | Second time (cached) |
+| --------------------------- | ------------ | -------------------- |
+| Network download (1 B INT4) | 30 s – 3 min | 0 s                  |
+| Cache decode + load         | 2–5 s        | 2–5 s                |
+| WebGPU shader compile       | 5–15 s       | 0–2 s (cached)       |
+| Time to first token         | 0.3–1.0 s    | 0.3–1.0 s            |
+| Throughput                  | 30–80 tok/s  | 30–80 tok/s          |
+
+Tips:
+
+- **Pre-load on idle.** Start `Chat.create()` as soon as the page loads; show the chat UI in a disabled state and enable it on `phase: "ready"`.
+- **Don't load multiple models in parallel.** Each model holds GPU memory; loading two large models at once will OOM on most machines.
+- **Call `chat.unload()` when leaving the page.** Frees GPU memory immediately instead of waiting for GC.
+- **Smaller is better for first impressions.** Default to `llama-3.2-1b-int4` for casual users; offer `phi-3.5-mini-int4` as an opt-in "high quality" tier.
+
+## Inspect, clear and re-download
+
+### Inspect cached files
+
+In Chrome / Edge:
+
+1. Open DevTools (`F12`).
+2. Go to **Application → Storage → Cache Storage**.
+3. Expand the WebLLM cache (look for a key containing `webllm/`).
+4. You'll see weight shards, tokenizer files, and config JSON.
+
+You can also list cache keys programmatically:
+
+```typescript
+const keys = await caches.keys();
+console.log(keys); // includes the WebLLM cache name
+```
+
+### Clear a single model
+
+The simplest path is to delete the entire WebLLM cache (forces re-download of every cached model on next load):
+
+1. DevTools → **Application → Storage → Cache Storage**.
+2. Right-click the WebLLM cache → **Delete**.
+
+For per-model deletion, use the WebLLM helper directly (the SDK does not expose this in v0.1; planned for v0.2 alongside OPFS support):
+
+```typescript
+import { deleteModelInCache } from "@mlc-ai/web-llm";
+await deleteModelInCache("Llama-3.2-1B-Instruct-q4f16_1-MLC");
+```
+
+### Clear everything for the origin
+
+DevTools → **Application → Storage → Clear site data** wipes the Cache API, IndexedDB, OPFS, cookies and storage in one click. Useful when reproducing first-load UX.
+
+## Offline behavior
+
+After the first successful load:
+
+- **Online + cached:** instant load from Cache API. No network requests.
+- **Offline + cached:** instant load from Cache API. No network requests.
+- **Offline + not cached:** `ModelLoadError` is thrown — the SDK can't fetch the weights.
+
+To make a deployment offline-friendly out of the box, pre-fetch the model on first launch (e.g. behind a "Set up" button) and surface a clear error when the user is offline before the cache is warm:
+
+```typescript
+import { Chat, ModelLoadError } from "localm-web";
+
+try {
+  const chat = await Chat.create("llama-3.2-1b-int4", { onProgress: updateUI });
+} catch (err) {
+  if (err instanceof ModelLoadError && !navigator.onLine) {
+    showOfflineFirstLoadHint();
+  } else {
+    throw err;
+  }
+}
+```
+
+## Troubleshooting
+
+### WebGPU unavailable
+
+Symptom: `WebGPUUnavailableError` thrown on `Chat.create`.
+
+Causes and fixes:
+
+- **Browser too old.** Update to Chrome / Edge 113+ or Safari 18+.
+- **Firefox.** Stable Firefox doesn't ship WebGPU yet. Use Firefox Nightly and set `dom.webgpu.enabled = true` in `about:config`.
+- **Linux + Mesa.** Some integrated drivers are blocked; launch Chrome with `--enable-features=Vulkan` to test.
+- **Headless or sandboxed environments.** WebGPU is disabled in many CI/headless browsers. Validate the SDK in a real browser.
+- **HTTP, not HTTPS.** Move to `localhost` or HTTPS — `http://192.168.x.x` does not enable WebGPU.
+
+### Model load stalls at 0 %
+
+The first byte hasn't arrived yet. Check:
+
+- Network tab — are requests pending or 404?
+- DevTools console — is there a CORS error from the HuggingFace mirror?
+- Corporate proxies / firewalls often block large CDN downloads. Test on a residential connection.
+
+### "Quota exceeded" / `QuotaExceededError`
+
+The browser refused to write more bytes to Cache API + OPFS. Causes:
+
+- **Disk full.** Free up local disk space.
+- **Browser storage quota hit.** Chrome allots ~60 % of free disk space per origin; Firefox is stricter. Clear storage for unused origins.
+- **Private / Incognito window.** Storage quota is much smaller and ephemeral. Use a normal window for first-time downloads.
+
+### Runs slowly / glitches the UI
+
+Inference runs on the main thread in v0.1. The Web Worker integration is planned for v0.2 and will isolate inference automatically.
+
+Until then:
+
+- Don't run animations during streaming.
+- Use `chat.stream()` (which yields per token) over `chat.send()` to keep the event loop responsive.
+- Lower `maxTokens` for snappier replies.
+
+### Vite warns about pre-bundling
+
+If `vite dev` complains about `@mlc-ai/web-llm` being pre-bundled, add it to `optimizeDeps.exclude`:
+
+```typescript
+// vite.config.ts
+import { defineConfig } from "vite";
+
+export default defineConfig({
+  optimizeDeps: {
+    exclude: ["@mlc-ai/web-llm", "localm-web"],
+  },
+});
+```
+
+## Next steps
+
+- Browse the [examples folder](../examples/) for runnable integrations.
+- Read the [security policy](../README.md#security) before deploying.
+- Track upcoming features in the [versioning roadmap](../README.md#versioning-roadmap).
+
+If something in this guide is wrong or missing, [open an issue](https://github.com/mauriciobenjamin700/localm-web/issues/new) — feedback during pre-1.0 is the most valuable contribution.

@@ -161,19 +161,19 @@ The shape mirrors `ort-vision-sdk-web`: `await Class.create(model)` then `predic
 
 ## Installation
 
-> Not yet published. Once v0.1 ships:
-
 ```bash
 npm install localm-web @mlc-ai/web-llm
 ```
 
 `@mlc-ai/web-llm` is a peer dependency — the consumer pins the version, which keeps the SDK lightweight and avoids version conflicts.
 
+For a step-by-step walkthrough covering install, model selection, downloading weights, running the example app and troubleshooting, see **[docs/getting-started.md](./docs/getting-started.md)**.
+
 ## Vite usage
 
 The package is designed to drop into a Vite app with no extra config. The Web Worker is bundled via Vite's native worker support; just import the SDK and use it.
 
-A complete example will live under `examples/vite-chat/` once v0.1 lands.
+A runnable example lives under [`examples/vite-chat/`](./examples/vite-chat/) — `cd` into it, `npm install`, `npm run dev`, open the browser, pick a model, send a prompt. The full guide in [`docs/getting-started.md`](./docs/getting-started.md#run-the-example-app) walks through it.
 
 ## Why not server-side?
 
