@@ -9,6 +9,7 @@ A practical walkthrough for downloading a model and running your first prompt lo
 - [Prerequisites](#prerequisites)
 - [Install](#install)
 - [First chat in 10 lines](#first-chat-in-10-lines)
+- [Embeddings and Reranker for retrieval](#embeddings-and-reranker-for-retrieval)
 - [Available models](#available-models)
 - [How a model downloads](#how-a-model-downloads)
 - [Where the model lives on disk](#where-the-model-lives-on-disk)
@@ -16,6 +17,7 @@ A practical walkthrough for downloading a model and running your first prompt lo
 - [Cold start, RAM and what to expect](#cold-start-ram-and-what-to-expect)
 - [Inspect, clear and re-download](#inspect-clear-and-re-download)
 - [Offline behavior](#offline-behavior)
+- [Web Worker by default](#web-worker-by-default)
 - [Troubleshooting](#troubleshooting)
 
 ## Prerequisites
@@ -79,6 +81,81 @@ const result = await comp.predict("Once upon a time", { maxTokens: 60 });
 console.log(result.text);
 ```
 
+## Embeddings and Reranker for retrieval
+
+For retrieval-augmented apps the SDK ships two more tasks. Both are backed by `@huggingface/transformers` (a separate, **optional** peer dependency). Install it only when you need them:
+
+```bash
+npm install @huggingface/transformers
+```
+
+### Embeddings — dense vectors
+
+```typescript
+import { Embeddings } from "localm-web";
+
+const emb = await Embeddings.create("bge-small-en-v1.5");
+const vectors = await emb.embed(["WebGPU is a modern graphics API", "Bananas grow on trees"]);
+console.log(vectors[0].length); // 384
+```
+
+`embed()` returns one `number[]` per input string in the same order. Empty input yields `[]` (no error). Defaults: `pooling: "mean"`, `normalize: true`. BGE-style models perform better with `pooling: "cls"`.
+
+For a single string, `embedSingle(text)` unwraps the first vector:
+
+```typescript
+const v = await emb.embedSingle("hello world");
+```
+
+### Reranker — cross-encoder second pass
+
+```typescript
+import { Reranker } from "localm-web";
+
+const rerank = await Reranker.create("bge-reranker-base");
+const scores = await rerank.score("what is webgpu?", [
+  "WebGPU is a modern graphics API for the web",
+  "Bananas grow on trees",
+  "WebAssembly compiles native code to a portable bytecode",
+]);
+// scores[0] >> scores[1], scores[2] in between
+```
+
+`score()` returns raw logits by default. Pass `{ sigmoid: true }` to map them into `[0, 1]` for use as probabilities.
+
+For a sorted result preserving the original index, use `rank()`:
+
+```typescript
+const ranked = await rerank.rank("what is webgpu?", docs);
+for (const r of ranked) console.log(r.score.toFixed(3), r.text);
+```
+
+### Putting it together — retrieve then rerank
+
+```typescript
+const emb = await Embeddings.create("bge-small-en-v1.5");
+const rerank = await Reranker.create("bge-reranker-base");
+
+const corpus = ["doc1…", "doc2…", "doc3…", "doc4…"];
+const corpusVecs = await emb.embed(corpus);
+
+async function search(query: string, topK: number, finalK: number) {
+  const [qv] = await emb.embed([query]);
+  const candidates = corpusVecs
+    .map((v, i) => ({ i, sim: cosine(qv!, v) }))
+    .sort((a, b) => b.sim - a.sim)
+    .slice(0, topK)
+    .map(({ i }) => ({ i, text: corpus[i]! }));
+  const scored = await rerank.rank(
+    query,
+    candidates.map((c) => c.text)
+  );
+  return scored.slice(0, finalK).map((r) => candidates[r.index]!);
+}
+```
+
+`cosine()` is a standard dot-product over L2-normalized vectors — ten lines of code or borrow from any vector library.
+
 ## Available models
 
 The SDK ships with a curated registry. Every entry has been validated to load in WebGPU-enabled browsers and to fit the SLM target (≤ 4B parameters at INT4):
@@ -99,7 +176,32 @@ console.log(MODEL_PRESETS["llama-3.2-1b-int4"]);
 // { id, family, parameters, quantization, webllmId, contextWindow, description }
 ```
 
-The registry will grow over v0.2–v0.5 to cover Phi-3.5, Llama-3.2-3B, Qwen2.5-0.5B / 3B, Gemma-2-2B and SmolLM2.
+The chat / completion registry will grow over v0.4–v0.5 to cover Phi-3.5, Llama-3.2-3B, Qwen2.5-0.5B / 3B, Gemma-2-2B and SmolLM2.
+
+### Embedding models (v0.3+)
+
+| Friendly id         | Family | Dim | Approx download | Use it for                                                           |
+| ------------------- | ------ | --- | --------------- | -------------------------------------------------------------------- |
+| `bge-small-en-v1.5` | BGE    | 384 | ~33 MB          | Default for English retrieval. Fast on integrated GPUs.              |
+| `bge-base-en-v1.5`  | BGE    | 768 | ~110 MB         | Higher quality at 2× the cost. Use when retrieval precision matters. |
+
+```typescript
+import { listSupportedEmbeddingModels, EMBEDDING_PRESETS } from "localm-web";
+
+console.log(listSupportedEmbeddingModels()); // ["bge-small-en-v1.5", "bge-base-en-v1.5"]
+```
+
+### Reranker models (v0.3+)
+
+| Friendly id         | Family       | Max tokens | Use it for                                                 |
+| ------------------- | ------------ | ---------- | ---------------------------------------------------------- |
+| `bge-reranker-base` | BGE Reranker | 512        | Multilingual cross-encoder for retrieve-then-rerank flows. |
+
+```typescript
+import { listSupportedRerankerModels, RERANKER_PRESETS } from "localm-web";
+
+console.log(listSupportedRerankerModels()); // ["bge-reranker-base"]
+```
 
 ## How a model downloads
 
@@ -251,6 +353,28 @@ try {
   }
 }
 ```
+
+## Web Worker by default
+
+From v0.3, `Chat.create()` and `Completion.create()` spawn a Web Worker by default. Tokenization, sampling and WebGPU dispatches run off the UI thread; your animations and user input stay smooth even during long generations.
+
+You don't need to do anything to opt in — calling `Chat.create("…")` already gets you the worker:
+
+```typescript
+const chat = await Chat.create("llama-3.2-1b-int4"); // Web Worker by default
+```
+
+To opt out (for example, when debugging the runtime or running in an environment without `Worker` support), pass `inWorker: false`:
+
+```typescript
+const chat = await Chat.create("llama-3.2-1b-int4", { inWorker: false });
+```
+
+A few practical notes:
+
+- The worker is **lazy-loaded**. Bundles that call `Chat.create()` only fetch the worker chunk when a chat is created — apps that opt out via `inWorker: false` never download it.
+- The worker bundle includes `@mlc-ai/web-llm` (workers can't resolve bare specifiers at runtime). It's ~6.5 MB pre-gzip and ~1.5 MB gzipped — paid once per user, then cached.
+- `Embeddings` and `Reranker` (v0.3+) currently run on the main thread. Worker integration is planned for a later release.
 
 ## Troubleshooting
 
