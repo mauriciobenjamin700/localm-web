@@ -6,3 +6,7 @@ examples/**/dist
 package-lock.json
 pnpm-lock.yaml
 yarn.lock
+.claude
+.vscode
+.idea
+RELEASES.md
