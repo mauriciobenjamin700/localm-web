@@ -24,6 +24,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `WebLLMEngine.load()` classifies each progress report via
   `classifyLoadPhase()` and emits a final `phase: "ready"` event exactly
   once when the load resolves successfully.
+- `WorkerEngine` — `Engine` implementation that proxies all calls to a Web
+  Worker via a typed RPC protocol. Lets consumers run inference off the UI
+  thread.
+- `createInferenceWorker()` helper that spawns a module-type Worker pointing
+  at the SDK's bundled worker entry. Exposed for advanced lifecycle
+  scenarios (pooling, custom termination); most consumers never call it
+  directly.
+- `LMTaskCreateOptions.inWorker` flag (default `false` in v0.2). When
+  `true`, the task instantiates a worker-backed engine instead of running
+  inference on the main thread. Default flips to `true` in v0.3 once the
+  Cache API / OPFS integration validates worker-thread storage access.
+- `src/worker/protocol.ts` — discriminated-union message contract between
+  main thread and worker (`load`, `generate`, `stream`, `complete`,
+  `stream-completion`, `abort`, `unload`, `isLoaded` requests; `loaded`,
+  `progress`, `generated`, `token`, `stream-end`, `error`, `unloaded`,
+  `is-loaded` responses). Numeric op ids isolate concurrent operations.
+- `WorkerLike` interface exported for tests and custom integrations that
+  need to inject a transport (mocks, Comlink wrappers, MessagePort
+  bridges).
+- 11 new unit tests in `test/worker-engine.test.ts` exercising load with
+  progress, generate round-trip, abort propagation, signal stripping,
+  streaming queue, error mapping, unload short-circuit, terminate, and
+  concurrent-load rejection.
 - `ModelCache` class in `src/cache/model-cache.ts` — inspect and manage
   cached model weights from a consuming app:
   - `has(modelId)` / `delete(modelId)` wrap WebLLM's `hasModelInCache` /
@@ -54,6 +77,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   technically a breaking change but the SDK is pre-1.0 and the type is
   emitted only by the engine — consumers were already supposed to treat
   the payload as opaque.
+- `vite.config.ts` adds `worker.format = "es"` and externalizes ORT-Web /
+  HF deps from the worker bundle. `@mlc-ai/web-llm` is intentionally
+  bundled into the worker chunk because workers cannot resolve bare
+  specifiers at runtime — this trades a larger lazy-loaded chunk
+  (~6.5 MB pre-gzip, only fetched when `inWorker: true`) for a clean DX
+  (no consumer-side worker config). The main `dist/index.js` stays at
+  ~16 kB and webllm remains a peer dep there.
+- `engines.node` bumped from `>=18.0.0` to `>=20.19.0`. Vite 7's worker
+  bundler depends on `crypto.hash()` which lands in Node 19; Node 18
+  also reaches end-of-life on 2025-04-30 per the Node release schedule.
+- CI matrix dropped Node 18, kept 20 + 22.
 
 ### Notes
 

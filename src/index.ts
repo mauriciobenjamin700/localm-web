@@ -27,6 +27,9 @@ export {
 } from "./core/exceptions";
 
 export type { Engine } from "./core/engine";
+export { WorkerEngine } from "./core/worker-engine";
+export { createInferenceWorker } from "./worker/create-worker";
+export type { WorkerLike } from "./worker/protocol";
 
 export { ModelCache } from "./cache";
 export type { CachedModelEntry, CacheUsage, ModelCacheOptions } from "./cache";
