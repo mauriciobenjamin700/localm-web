@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `docs/getting-started.md` — end-to-end guide covering prerequisites,
+  install, first chat snippet, the curated model registry with download /
+  RAM estimates, how a model downloads and where it caches, running the
+  example Vite app, cold-start expectations, inspecting / clearing the
+  Cache API, offline behavior and troubleshooting.
+- README links to the new guide from the **Installation** and
+  **Vite usage** sections; the example app blurb now points at the
+  runnable folder instead of hedging with "once v0.1 lands".
 - `Completion` task for raw text continuation (no chat template, no history).
   Exposes `predict()` returning a `CompletionResult` and `stream()` yielding
   `TokenChunk` async iterable. Mirrors the `Chat` task DX.
