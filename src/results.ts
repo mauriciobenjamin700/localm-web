@@ -18,3 +18,22 @@ export class ChatReply {
     public readonly finishReason: FinishReason
   ) {}
 }
+
+/**
+ * Result returned by `Completion.predict()`.
+ *
+ * Holds the generated continuation text (the prompt itself is not included)
+ * plus metadata about the generation loop.
+ */
+export class CompletionResult {
+  constructor(
+    /** The generated text (continuation only, prompt excluded). */
+    public readonly text: string,
+    /** The original prompt that was fed to the model. */
+    public readonly prompt: string,
+    /** Number of tokens generated. 0 when the engine does not report it. */
+    public readonly tokensGenerated: number,
+    /** Why the generation loop stopped. */
+    public readonly finishReason: FinishReason
+  ) {}
+}

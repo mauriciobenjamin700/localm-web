@@ -7,10 +7,11 @@
  */
 
 export { Chat } from "./tasks/chat";
+export { Completion } from "./tasks/completion";
 export { LMTask } from "./tasks/lm-task";
 export type { LMTaskCreateOptions } from "./tasks/lm-task";
 
-export { ChatReply } from "./results";
+export { ChatReply, CompletionResult } from "./results";
 
 export { MODEL_PRESETS, resolveModelPreset, listSupportedModels } from "./presets/models";
 
