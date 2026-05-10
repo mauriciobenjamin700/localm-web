@@ -21,6 +21,7 @@ There is no equivalent of `ort-vision-sdk-web` for Language Models: no opinionat
 ## Scope
 
 ### In scope
+
 - Browser runtime only (no Node, no Bun, no Deno-server).
 - Task-level API: `Chat`, `Completion`, `Embeddings`, `Reranker`.
 - Streaming token output via async generators with `AbortSignal`.
@@ -32,6 +33,7 @@ There is no equivalent of `ort-vision-sdk-web` for Language Models: no opinionat
 - ESM-only build, optimized for Vite consumers.
 
 ### Out of scope
+
 - Server-side execution (Node/Edge runtimes).
 - Training, fine-tuning, LoRA loading.
 - Multi-modal inputs at v1.0 (vision-language models — defer to a future composite SDK that combines `ort-vision-sdk-web` + `localm-web`).
@@ -154,9 +156,11 @@ The shape mirrors `ort-vision-sdk-web`: `await Class.create(model)` then `predic
 ## Code Style & Conventions
 
 ### Strings
+
 Always **double quotes** (`"`).
 
 ### Type hints
+
 Strict TypeScript. No implicit `any`. Every public function has explicit parameter and return types. JSDoc on every exported symbol.
 
 ```typescript
@@ -174,12 +178,15 @@ async send(message: string, options?: GenerationOptions): Promise<ChatReply> {
 ```
 
 ### Async
+
 Default to `async` for any I/O or inference call. Streaming uses `async function*` generators.
 
 ### Collections & empty results
+
 Methods returning collections (`embed`, `score`, batch operations) return an empty array when nothing matches. Never throw a `NotFoundError` for empty results. The 404 convention applies only to single-resource lookups.
 
 ### Imports
+
 - Absolute imports from the package root for internal cross-module references when convenient.
 - Re-export from each module's `index.ts` so consumers import from the package root only.
 
@@ -192,6 +199,7 @@ import { Chat } from "localm-web/src/tasks/chat";
 ```
 
 ### Naming
+
 - **Files/modules:** `kebab-case.ts`
 - **Classes:** `PascalCase`
 - **Functions/variables:** `camelCase`
@@ -200,19 +208,20 @@ import { Chat } from "localm-web/src/tasks/chat";
 - **Result classes:** Suffix `Result` / `Reply` / `Embedding` (e.g. `ChatReply`, `EmbeddingResult`).
 
 ### Error handling
+
 Custom error classes per failure mode (`ModelLoadError`, `WebGPUUnavailableError`, `QuotaExceededError`, `GenerationAbortedError`). Never throw raw `Error`.
 
 ## Versioning Roadmap
 
-| Version | Scope |
-|---------|-------|
+| Version  | Scope                                                                                                         |
+| -------- | ------------------------------------------------------------------------------------------------------------- |
 | **v0.1** | `Chat` via WebLLM. 3 models prebuilt: Phi-3.5-mini, Llama-3.2-1B, Qwen2.5-1.5B. Streaming with `AbortSignal`. |
-| **v0.2** | `Completion` task. Model caching (Cache API + OPFS). Web Worker by default. Progress events. |
-| **v0.3** | `Embeddings` task + `Reranker` task. BGE family via transformers.js. |
-| **v0.4** | Structured output (JSON Schema → grammar / logit masking). |
-| **v0.5** | ORT-Web fallback for browsers without WebGPU. Auto-detect and graceful degrade. |
-| **v0.6** | Function calling helper (tool use, schema-validated args). |
-| **v1.0** | Documentation site, runnable demo, stable API contract. |
+| **v0.2** | `Completion` task. Model caching (Cache API + OPFS). Web Worker by default. Progress events.                  |
+| **v0.3** | `Embeddings` task + `Reranker` task. BGE family via transformers.js.                                          |
+| **v0.4** | Structured output (JSON Schema → grammar / logit masking).                                                    |
+| **v0.5** | ORT-Web fallback for browsers without WebGPU. Auto-detect and graceful degrade.                               |
+| **v0.6** | Function calling helper (tool use, schema-validated args).                                                    |
+| **v1.0** | Documentation site, runnable demo, stable API contract.                                                       |
 
 ## Build & Distribution
 
@@ -232,6 +241,7 @@ Custom error classes per failure mode (`ModelLoadError`, `WebGPUUnavailableError
 ## Do's and Don'ts
 
 ### Do
+
 - Wrap WebLLM, do not fork it.
 - Stream tokens — never block the UI on full-completion APIs.
 - Run inference in a Web Worker by default.
@@ -240,12 +250,59 @@ Custom error classes per failure mode (`ModelLoadError`, `WebGPUUnavailableError
 - Type everything. JSDoc every public symbol. Double quotes everywhere.
 
 ### Don't
+
 - Don't add a Node/server build target.
 - Don't bundle model weights into the package.
 - Don't expose the underlying WebLLM/ORT engine as part of the public API surface — keep it internal so we can swap backends without breaking users.
 - Don't add CJS/UMD/IIFE outputs.
 - Don't depend on Vercel-specific APIs or build features.
 - Don't ship a chat UI component. This is an SDK, not a chatbot kit.
+
+## Security & vulnerabilities
+
+Browser SDK = client-side runtime. Vulnerabilities split into two layers, treated differently:
+
+### Runtime deps (ship to user)
+
+`peerDependencies` and any future `dependencies` execute in the consumer's browser. **Zero tolerance** for known vulns. Before any release:
+
+```bash
+make validate                # roda npm audit implicitamente via npm ci
+npm audit --omit=dev         # checa só o que vai pro bundle do consumidor
+```
+
+If `npm audit --omit=dev` reports anything, **block the release**. Never publish with known runtime CVEs.
+
+### Dev deps (build/test only)
+
+`devDependencies` (vite, vitest, eslint, prettier, esbuild) never reach the published bundle — they run on the maintainer's machine and in CI. Vulns there have lower blast radius (mostly: malicious site reading local dev-server response while you `npm run dev`). Still fix them, but the bar is "fix at next chore PR" not "block release".
+
+### Policy when audit flags something
+
+1. **Run `npm audit`** — read the advisory ID (GHSA-xxxx). Don't trust severity alone; read the impact section.
+2. **Classify**: runtime (`peerDependencies` / `dependencies`) vs dev-only (`devDependencies`). Runtime → block. Dev-only → schedule.
+3. **Prefer minimal fix**:
+   - Direct dep → bump in `devDependencies` / `peerDependencies` (semver-respecting first).
+   - Transitive dep → use `overrides` in `package.json` to pin the safe version without bumping the parent.
+4. **Avoid `npm audit fix --force`** — it picks latest majors and breaks the build silently. Bump explicitly, run `make validate`, commit.
+5. **Pin `overrides` with care**: only for transitive vulns where the parent hasn't released a fix. Document the GHSA ID in `CHANGELOG.md` so future you knows when it can be removed.
+6. **CI gate**: every PR runs `npm ci` which surfaces vulns. The `release-npm.yml` workflow runs `npm ci` + tests before publishing — so a vulnerable `package-lock.json` blocks publish.
+
+### Things to never do
+
+- Don't disable `npm audit` warnings.
+- Don't commit a `package-lock.json` that introduces new advisories without a `chore: bump` PR explaining why.
+- Don't use `--no-verify` / `--no-audit` flags.
+- Don't ship a runtime dep with a known critical/high vuln, even if "the consumer can patch it" — they can't, peer deps install at their level but resolution semantics still leak our version range into their lockfile.
+- Don't bundle WebLLM model weights or any third-party model registry data into the package — keeps supply chain narrow.
+
+### Browser-side concerns (consumer code)
+
+When documenting examples / Vite app demos, remind consumers:
+
+- Models load from external URLs (HuggingFace mirrors, MLC CDN). Use Subresource Integrity (SRI) when possible, or self-host the weights.
+- Cache API + OPFS persist model bytes on the user's disk — surface this in privacy policy.
+- WebGPU access is gated by the user's browser; don't paper over `WebGPUUnavailableError` with retries that look like crashes.
 
 ## References
 

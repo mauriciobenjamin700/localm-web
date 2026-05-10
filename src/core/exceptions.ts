@@ -12,7 +12,10 @@ export class LocalmWebError extends Error {
    * @param message - Human-readable description of the error.
    * @param cause - Underlying error, if any.
    */
-  constructor(message: string, public readonly cause?: unknown) {
+  constructor(
+    message: string,
+    public readonly cause?: unknown
+  ) {
     super(message);
     this.name = new.target.name;
   }

@@ -1,10 +1,5 @@
 import type { Engine } from "./engine";
-import type {
-  GenerationOptions,
-  Message,
-  ProgressCallback,
-  TokenChunk,
-} from "../types";
+import type { GenerationOptions, Message, ProgressCallback, TokenChunk } from "../types";
 import {
   GenerationAbortedError,
   ModelLoadError,
@@ -14,8 +9,7 @@ import {
 
 type WebLLMModule = typeof import("@mlc-ai/web-llm");
 type MLCEngine = import("@mlc-ai/web-llm").MLCEngineInterface;
-type ChatCompletionMessageParam =
-  import("@mlc-ai/web-llm").ChatCompletionMessageParam;
+type ChatCompletionMessageParam = import("@mlc-ai/web-llm").ChatCompletionMessageParam;
 
 let webllmModulePromise: Promise<WebLLMModule> | null = null;
 
@@ -95,10 +89,7 @@ export class WebLLMEngine implements Engine {
     }
   }
 
-  async generate(
-    messages: Message[],
-    options: GenerationOptions = {}
-  ): Promise<string> {
+  async generate(messages: Message[], options: GenerationOptions = {}): Promise<string> {
     const engine = this.requireEngine();
     if (options.signal?.aborted) {
       throw new GenerationAbortedError("Generation aborted before start.");
@@ -111,10 +102,7 @@ export class WebLLMEngine implements Engine {
     return completion.choices[0]?.message?.content ?? "";
   }
 
-  async *stream(
-    messages: Message[],
-    options: GenerationOptions = {}
-  ): AsyncIterable<TokenChunk> {
+  async *stream(messages: Message[], options: GenerationOptions = {}): AsyncIterable<TokenChunk> {
     const engine = this.requireEngine();
     if (options.signal?.aborted) {
       throw new GenerationAbortedError("Generation aborted before start.");
@@ -161,9 +149,7 @@ export class WebLLMEngine implements Engine {
 
   private requireEngine(): MLCEngine {
     if (!this.engine) {
-      throw new ModelNotLoadedError(
-        "Engine not loaded. Call load() before generation."
-      );
+      throw new ModelNotLoadedError("Engine not loaded. Call load() before generation.");
     }
     return this.engine;
   }

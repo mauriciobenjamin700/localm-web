@@ -1,12 +1,7 @@
 import { LMTask, type LMTaskCreateOptions } from "./lm-task";
 import type { Engine } from "../core/engine";
 import { ChatReply } from "../results";
-import type {
-  GenerationOptions,
-  Message,
-  ModelPreset,
-  TokenChunk,
-} from "../types";
+import type { GenerationOptions, Message, ModelPreset, TokenChunk } from "../types";
 
 /**
  * Multi-turn chat task.
@@ -44,10 +39,7 @@ export class Chat extends LMTask {
    * @param modelId - Friendly model id from the registry (e.g. `"phi-3.5-mini-int4"`).
    * @param options - Optional creation options (progress callback, engine override).
    */
-  static async create(
-    modelId: string,
-    options: LMTaskCreateOptions = {}
-  ): Promise<Chat> {
+  static async create(modelId: string, options: LMTaskCreateOptions = {}): Promise<Chat> {
     const { engine, preset } = await LMTask.createEngine(modelId, options);
     return new Chat(engine, preset);
   }
@@ -81,10 +73,7 @@ export class Chat extends LMTask {
    * @param options - Generation options.
    * @returns A {@link ChatReply} with the assistant's reply.
    */
-  async send(
-    message: string,
-    options: GenerationOptions = {}
-  ): Promise<ChatReply> {
+  async send(message: string, options: GenerationOptions = {}): Promise<ChatReply> {
     const messages = this.buildMessages(message);
     const text = await this.engine.generate(messages, options);
     const userMsg: Message = { role: "user", content: message };
@@ -102,10 +91,7 @@ export class Chat extends LMTask {
    * @param message - The user-facing message text.
    * @param options - Generation options including an optional `signal`.
    */
-  async *stream(
-    message: string,
-    options: GenerationOptions = {}
-  ): AsyncIterable<TokenChunk> {
+  async *stream(message: string, options: GenerationOptions = {}): AsyncIterable<TokenChunk> {
     const messages = this.buildMessages(message);
     const userMsg: Message = { role: "user", content: message };
     let acc: string = "";

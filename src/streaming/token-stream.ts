@@ -9,9 +9,7 @@ import type { TokenChunk } from "../types";
  * @param stream - The token-chunk async iterable to consume.
  * @returns The concatenation of every chunk's `text` field.
  */
-export async function collectStream(
-  stream: AsyncIterable<TokenChunk>
-): Promise<string> {
+export async function collectStream(stream: AsyncIterable<TokenChunk>): Promise<string> {
   let acc: string = "";
   for await (const chunk of stream) {
     acc += chunk.text;
