@@ -4,4 +4,6 @@ _Gerado automaticamente por `make releases-md` a partir das git tags._
 
 ## localm-web (npm)
 
-_Nenhuma release publicada ainda._
+| Tag | Data | Commit |
+| --- | ---- | ------ |
+| v0.1.0 | 2026-05-10 | 6c94245 |

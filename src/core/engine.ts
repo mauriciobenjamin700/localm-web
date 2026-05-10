@@ -40,6 +40,34 @@ export interface Engine {
    */
   stream(messages: Message[], options?: GenerationOptions): AsyncIterable<TokenChunk>;
 
+  /**
+   * Generate a non-streaming raw text completion.
+   *
+   * Unlike {@link Engine.generate}, this skips the chat template and feeds the
+   * prompt to the underlying model verbatim. Useful for "Once upon a time…"
+   * style continuation.
+   *
+   * @param prompt - Raw text fed to the model.
+   * @param options - Generation options.
+   * @returns The full generated text (excluding the prompt).
+   * @throws ModelNotLoadedError if called before {@link Engine.load}.
+   * @throws GenerationAbortedError if `options.signal` is triggered.
+   */
+  complete(prompt: string, options?: GenerationOptions): Promise<string>;
+
+  /**
+   * Stream a raw text completion as an async iterable of token chunks.
+   *
+   * Unlike {@link Engine.stream}, this skips the chat template.
+   *
+   * @param prompt - Raw text fed to the model.
+   * @param options - Generation options.
+   * @returns Async iterable yielding token chunks. The final chunk has `done: true`.
+   * @throws ModelNotLoadedError if called before {@link Engine.load}.
+   * @throws GenerationAbortedError if `options.signal` is triggered.
+   */
+  streamCompletion(prompt: string, options?: GenerationOptions): AsyncIterable<TokenChunk>;
+
   /** Release any resources held by the engine. Safe to call when not loaded. */
   unload(): Promise<void>;
 

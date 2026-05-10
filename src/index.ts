@@ -7,10 +7,11 @@
  */
 
 export { Chat } from "./tasks/chat";
+export { Completion } from "./tasks/completion";
 export { LMTask } from "./tasks/lm-task";
 export type { LMTaskCreateOptions } from "./tasks/lm-task";
 
-export { ChatReply } from "./results";
+export { ChatReply, CompletionResult } from "./results";
 
 export { MODEL_PRESETS, resolveModelPreset, listSupportedModels } from "./presets/models";
 
@@ -26,6 +27,12 @@ export {
 } from "./core/exceptions";
 
 export type { Engine } from "./core/engine";
+export { WorkerEngine } from "./core/worker-engine";
+export { createInferenceWorker } from "./worker/create-worker";
+export type { WorkerLike } from "./worker/protocol";
+
+export { ModelCache } from "./cache";
+export type { CachedModelEntry, CacheUsage, ModelCacheOptions } from "./cache";
 
 export { collectStream, tap } from "./streaming/token-stream";
 
@@ -35,10 +42,11 @@ export type {
   Message,
   GenerationOptions,
   ModelLoadProgress,
+  ModelLoadPhase,
   ProgressCallback,
   TokenChunk,
   ModelPreset,
 } from "./types";
 
 /** Current package version. Updated at release time. */
-export const VERSION: string = "0.0.1";
+export const VERSION: string = "0.1.0";

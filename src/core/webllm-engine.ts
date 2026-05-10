@@ -1,4 +1,5 @@
 import type { Engine } from "./engine";
+import { classifyLoadPhase } from "./load-phase";
 import type { GenerationOptions, Message, ProgressCallback, TokenChunk } from "../types";
 import {
   GenerationAbortedError,
@@ -81,8 +82,16 @@ export class WebLLMEngine implements Engine {
             text: report.text,
             loaded: 0,
             total: 0,
+            phase: classifyLoadPhase(report.text),
           });
         },
+      });
+      onProgress?.({
+        progress: 1,
+        text: "Model ready.",
+        loaded: 0,
+        total: 0,
+        phase: "ready",
       });
     } catch (err) {
       throw new ModelLoadError(`Failed to load model "${modelId}".`, err);
@@ -137,6 +146,60 @@ export class WebLLMEngine implements Engine {
     } catch (err) {
       if (err instanceof GenerationAbortedError) throw err;
       throw new ModelLoadError("Streaming generation failed.", err);
+    }
+  }
+
+  async complete(prompt: string, options: GenerationOptions = {}): Promise<string> {
+    const engine = this.requireEngine();
+    if (options.signal?.aborted) {
+      throw new GenerationAbortedError("Generation aborted before start.");
+    }
+    const completion = await engine.completions.create({
+      ...buildSamplingParams(options),
+      prompt,
+      stream: false,
+    });
+    return completion.choices[0]?.text ?? "";
+  }
+
+  async *streamCompletion(
+    prompt: string,
+    options: GenerationOptions = {}
+  ): AsyncIterable<TokenChunk> {
+    const engine = this.requireEngine();
+    if (options.signal?.aborted) {
+      throw new GenerationAbortedError("Generation aborted before start.");
+    }
+    const completion = await engine.completions.create({
+      ...buildSamplingParams(options),
+      prompt,
+      stream: true,
+    });
+    let index: number = 0;
+    let finished: boolean = false;
+    try {
+      for await (const chunk of completion) {
+        if (options.signal?.aborted) {
+          throw new GenerationAbortedError("Generation aborted by signal.");
+        }
+        const choice = chunk.choices[0];
+        const delta = choice?.text ?? "";
+        if (delta) {
+          yield { text: delta, index, done: false };
+          index += 1;
+        }
+        if (choice?.finish_reason) {
+          finished = true;
+          yield { text: "", index, done: true };
+          index += 1;
+        }
+      }
+      if (!finished) {
+        yield { text: "", index, done: true };
+      }
+    } catch (err) {
+      if (err instanceof GenerationAbortedError) throw err;
+      throw new ModelLoadError("Streaming completion failed.", err);
     }
   }
 
