@@ -16,9 +16,10 @@ export interface LMTaskCreateOptions {
   engine?: Engine;
   /**
    * Run inference inside a Web Worker, isolating the UI thread from
-   * tokenization and generation. Defaults to `false` in v0.2 (opt-in) and
-   * will flip to `true` in v0.3 once the Cache API / OPFS integration
-   * (also v0.2) has been validated against worker-thread storage access.
+   * tokenization and generation. **Default `true` from v0.3** — the
+   * `WorkerEngine` is the recommended path. Pass `false` to keep
+   * inference on the main thread (useful for environments without
+   * `Worker` support or when debugging the runtime directly).
    *
    * Ignored when {@link engine} is provided.
    */
@@ -71,7 +72,8 @@ export abstract class LMTask {
   }
 
   private static defaultEngine(options: LMTaskCreateOptions): Engine {
-    if (options.inWorker) {
+    const useWorker: boolean = options.inWorker ?? true;
+    if (useWorker) {
       return new WorkerEngine(createInferenceWorker());
     }
     return new WebLLMEngine();

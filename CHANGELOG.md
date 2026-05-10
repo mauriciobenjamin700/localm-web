@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **`LMTaskCreateOptions.inWorker` default flipped from `false` to `true`.**
+  `Chat.create()` and `Completion.create()` now spawn a Web Worker by
+  default, isolating tokenization and WebGPU dispatches from the UI
+  thread. Pass `inWorker: false` explicitly to revert to main-thread
+  inference (useful in environments without `Worker` support or when
+  debugging the runtime). The fast path for opting out is unchanged
+  in shape — only the default differs. Pre-1.0 SDK; consumers
+  upgrading from v0.2 will silently move inference off the main
+  thread, which is desirable for almost every app.
+
 ### Added
 
 - `docs/getting-started.md` — end-to-end guide covering prerequisites,
