@@ -17,6 +17,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Engine.complete()` and `Engine.streamCompletion()` methods on the
   runtime-agnostic engine contract. `WebLLMEngine` implements both via
   `engine.completions.create()` (raw text mode, bypasses chat template).
+- `ModelLoadPhase` discriminated string type
+  (`"downloading" | "compiling" | "loading" | "ready"`) on `ModelLoadProgress`.
+  Lets consumers drive UI state machines (spinner → progress bar → ready
+  badge) without parsing the runtime's free-form status text.
+- `WebLLMEngine.load()` classifies each progress report via
+  `classifyLoadPhase()` and emits a final `phase: "ready"` event exactly
+  once when the load resolves successfully.
 - `ModelCache` class in `src/cache/model-cache.ts` — inspect and manage
   cached model weights from a consuming app:
   - `has(modelId)` / `delete(modelId)` wrap WebLLM's `hasModelInCache` /
@@ -40,6 +47,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 15 unit tests in `test/model-cache.test.ts` covering `has` / `delete`
   / `list` / `clear` / `estimateUsage` and `assertKnown`, including
   navigator fallbacks via `vi.stubGlobal`.
+
+### Changed
+
+- `ProgressCallback` payload shape gained a required `phase` field. This is
+  technically a breaking change but the SDK is pre-1.0 and the type is
+  emitted only by the engine — consumers were already supposed to treat
+  the payload as opaque.
 
 ### Notes
 
