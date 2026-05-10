@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `docs/getting-started.md` v0.3 update — new sections covering
+  Embeddings, Reranker, the retrieve-then-rerank pattern, the
+  embedding / reranker registries, and the new Web-Worker-by-default
+  behavior. Existing sections (model registry, downloads, cache,
+  troubleshooting) carry over unchanged.
+
+### Added (v0.2 carryover)
+
 - `docs/getting-started.md` — end-to-end guide covering prerequisites,
   install, first chat snippet, the curated model registry with download /
   RAM estimates, how a model downloads and where it caches, running the
