@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `WorkerEngine` — `Engine` implementation that proxies all calls to a Web
+  Worker via a typed RPC protocol. Lets consumers run inference off the UI
+  thread.
+- `createInferenceWorker()` helper that spawns a module-type Worker pointing
+  at the SDK's bundled worker entry. Exposed for advanced lifecycle
+  scenarios (pooling, custom termination); most consumers never call it
+  directly.
+- `LMTaskCreateOptions.inWorker` flag (default `false` in v0.2). When
+  `true`, the task instantiates a worker-backed engine instead of running
+  inference on the main thread. Default flips to `true` in v0.3 once the
+  Cache API / OPFS integration validates worker-thread storage access.
+- `src/worker/protocol.ts` — discriminated-union message contract between
+  main thread and worker (`load`, `generate`, `stream`, `abort`, `unload`,
+  `isLoaded` requests; `loaded`, `progress`, `generated`, `token`,
+  `stream-end`, `error`, `unloaded`, `is-loaded` responses). Numeric op
+  ids isolate concurrent operations.
+- `WorkerLike` interface exported for tests and custom integrations that
+  need to inject a transport (mocks, Comlink wrappers, MessagePort
+  bridges).
+- 11 new unit tests in `test/worker-engine.test.ts` exercising load with
+  progress, generate round-trip, abort propagation, signal stripping,
+  streaming queue, error mapping, unload short-circuit, terminate, and
+  concurrent-load rejection.
+
+### Changed
+
+- `vite.config.ts` adds `worker.format = "es"` and externalizes ORT-Web /
+  HF deps from the worker bundle. `@mlc-ai/web-llm` is intentionally
+  bundled into the worker chunk because workers cannot resolve bare
+  specifiers at runtime — this trades a larger lazy-loaded chunk
+  (~6.5 MB pre-gzip, only fetched when `inWorker: true`) for a clean DX
+  (no consumer-side worker config). The main `dist/index.js` stays at
+  ~16 kB and webllm remains a peer dep there.
+
 ## [0.1.0] - 2026-05-10
 
 ### Added
