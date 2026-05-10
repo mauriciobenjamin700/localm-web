@@ -61,3 +61,55 @@ export function resolveModelPreset(modelId: string): ModelPreset {
 export function listSupportedModels(): string[] {
   return Object.keys(MODEL_PRESETS);
 }
+
+/** Curated metadata for a supported reranker (cross-encoder) model. */
+export interface RerankerPreset {
+  /** Friendly identifier (e.g. `"bge-reranker-base"`). */
+  id: string;
+  /** Family name (e.g. `"BGE Reranker"`). */
+  family: string;
+  /** Maximum input length in tokens (combined query + document). */
+  maxTokens: number;
+  /** Identifier passed to `@huggingface/transformers`. */
+  transformersId: string;
+  /** Approximate quantization (e.g. `"fp32"`). */
+  quantization: string;
+  /** Short human description. */
+  description: string;
+}
+
+/**
+ * Curated registry of supported reranker models for v0.3.
+ */
+export const RERANKER_PRESETS: Readonly<Record<string, RerankerPreset>> = Object.freeze({
+  "bge-reranker-base": {
+    id: "bge-reranker-base",
+    family: "BGE Reranker",
+    maxTokens: 512,
+    transformersId: "Xenova/bge-reranker-base",
+    quantization: "fp32",
+    description: "BAAI BGE reranker base — multilingual cross-encoder.",
+  },
+});
+
+/**
+ * Resolve a friendly reranker model id to its full preset metadata.
+ *
+ * @param modelId - Friendly id (e.g. `"bge-reranker-base"`).
+ * @throws UnknownModelError if no preset matches.
+ */
+export function resolveRerankerPreset(modelId: string): RerankerPreset {
+  const preset = RERANKER_PRESETS[modelId];
+  if (!preset) {
+    const available = Object.keys(RERANKER_PRESETS).join(", ");
+    throw new UnknownModelError(
+      `Unknown reranker model "${modelId}". Available models: ${available}.`
+    );
+  }
+  return preset;
+}
+
+/** Return the list of supported reranker model ids. */
+export function listSupportedRerankerModels(): string[] {
+  return Object.keys(RERANKER_PRESETS);
+}

@@ -9,6 +9,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `Reranker` task in `src/tasks/reranker.ts` — cross-encoder reranking
+  via `@huggingface/transformers`. `Reranker.create(modelId, options?)`
+  returns an instance; `score(query, docs, options?)` returns
+  `number[]` (raw logits, or sigmoid-mapped to `[0, 1]` when
+  `sigmoid: true`); `rank(query, docs, options?)` returns
+  `RankedDocument[]` sorted descending by score with the original
+  index preserved. Empty `docs` yields `[]`.
+- `RERANKER_PRESETS` registry with `bge-reranker-base`.
+  `resolveRerankerPreset(id)` and `listSupportedRerankerModels()`
+  helpers. Public type `RerankerPreset`.
+- Public types: `RerankerCreateOptions`, `RerankOptions`,
+  `RerankPipeline`, `RankedDocument`.
+- `peerDependenciesMeta` marks `@huggingface/transformers` as
+  optional — Chat / Completion users do not need to install it.
+- 10 unit tests in `test/reranker.test.ts` covering registry
+  resolution, score order preservation, empty input short-circuit,
+  sigmoid normalization, default raw-logit output, descending sort
+  in `rank()`, unload delegation, graceful unload without
+  `unload()`.
+
+## [0.2.0] - 2026-05-10
+
+### Added
+
 - `docs/getting-started.md` — end-to-end guide covering prerequisites,
   install, first chat snippet, the curated model registry with download /
   RAM estimates, how a model downloads and where it caches, running the
