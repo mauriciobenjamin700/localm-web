@@ -134,10 +134,22 @@ const vectors = await emb.embed(["hello world", "another sentence"]);
 const rerank = await Reranker.create("bge-reranker-base");
 const scores = await rerank.score("query", ["doc1", "doc2", "doc3"]);
 
-// Structured output (JSON Schema → constrained decoding)
-const json = await chat.send("Extract user info from: ...", {
-  jsonSchema: { type: "object", properties: { name: { type: "string" } } },
+// Structured output — free-form JSON
+const jsonReply = await chat.send("List three pros and cons of WebGPU as JSON.", { json: true });
+const data = jsonReply.json<{ pros: string[]; cons: string[] }>();
+
+// Structured output — JSON Schema constrained decoding (xgrammar via WebLLM)
+const userReply = await chat.send("Extract user info from: 'Ada, 36, …'", {
+  jsonSchema: {
+    type: "object",
+    required: ["name", "age"],
+    properties: {
+      name: { type: "string" },
+      age: { type: "integer", minimum: 0 },
+    },
+  },
 });
+const user = userReply.json<{ name: string; age: number }>();
 ```
 
 The shape mirrors `ort-vision-sdk-web`: `await Class.create(model)` then `predict()` / `send()` / `embed()` / `score()`.

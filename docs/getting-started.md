@@ -10,6 +10,7 @@ A practical walkthrough for downloading a model and running your first prompt lo
 - [Install](#install)
 - [First chat in 10 lines](#first-chat-in-10-lines)
 - [Embeddings and Reranker for retrieval](#embeddings-and-reranker-for-retrieval)
+- [Structured output](#structured-output)
 - [Available models](#available-models)
 - [How a model downloads](#how-a-model-downloads)
 - [Where the model lives on disk](#where-the-model-lives-on-disk)
@@ -155,6 +156,115 @@ async function search(query: string, topK: number, finalK: number) {
 ```
 
 `cosine()` is a standard dot-product over L2-normalized vectors — ten lines of code or borrow from any vector library.
+
+## Structured output
+
+From v0.4, both `Chat` and `Completion` accept two flags on `GenerationOptions` that constrain the generated text to valid JSON. Behind the scenes the SDK forwards them to WebLLM's `response_format`; WebLLM uses [xgrammar](https://github.com/mlc-ai/xgrammar) to mask invalid tokens during sampling, so the model is **physically unable to emit malformed JSON** (no retry-on-parse-error loops, no regex post-processing).
+
+### `json: true` — free-form JSON
+
+Use when you want a JSON object but you don't care about the exact shape:
+
+```typescript
+import { Chat } from "localm-web";
+
+const chat = await Chat.create("phi-3.5-mini-int4");
+const reply = await chat.send(
+  "List three pros and three cons of WebGPU as a JSON object.",
+  { json: true }
+);
+
+const data = reply.json<{ pros: string[]; cons: string[] }>();
+console.log(data.pros, data.cons);
+```
+
+`reply.text` is the raw JSON string; `reply.json<T>()` is a thin wrapper around `JSON.parse` that throws `StructuredOutputError` on malformed input and returns the value cast to `T`. The cast is **not** validated — `T` is a type-level convenience, not a runtime guarantee.
+
+### `jsonSchema` — schema-constrained decoding
+
+Pass a JSON Schema and the model is forced to emit a value matching it. The schema is forwarded verbatim to xgrammar:
+
+```typescript
+import { Chat } from "localm-web";
+
+const userSchema = {
+  type: "object",
+  required: ["name", "age", "interests"],
+  properties: {
+    name: { type: "string" },
+    age: { type: "integer", minimum: 0 },
+    interests: { type: "array", items: { type: "string" }, minItems: 1 },
+  },
+} as const;
+
+const chat = await Chat.create("phi-3.5-mini-int4");
+const reply = await chat.send(
+  "Extract the user info from: 'Ada, 36, loves analytical engines and Lord Byron'.",
+  { jsonSchema: userSchema }
+);
+
+interface User {
+  name: string;
+  age: number;
+  interests: string[];
+}
+
+const user = reply.json<User>();
+console.log(user.name, user.age, user.interests);
+```
+
+When both `json` and `jsonSchema` are set, `jsonSchema` wins — no need to drop `json: true` to upgrade to a schema.
+
+### `Completion` works the same way
+
+The same flags work on raw text completion:
+
+```typescript
+import { Completion } from "localm-web";
+
+const comp = await Completion.create("qwen2.5-1.5b-int4");
+const result = await comp.predict("Return three primes as JSON.\nResult:", {
+  jsonSchema: {
+    type: "array",
+    items: { type: "integer" },
+    minItems: 3,
+    maxItems: 3,
+  },
+});
+
+const primes = result.json<number[]>();
+```
+
+### Error handling
+
+The only failure mode the SDK introduces here is `StructuredOutputError`, raised when:
+
+- the value passed as `jsonSchema` is not a recognizable JSON Schema (missing `type`, `$ref`, `oneOf`, `anyOf`, `allOf`, `enum`, `const`, or `properties`); or
+- the engine output somehow does not parse as JSON (rare with constrained decoding but possible if the runtime falls back to free-form text — for example when an unsupported `response_format` is silently ignored).
+
+```typescript
+import { Chat, StructuredOutputError } from "localm-web";
+
+try {
+  const reply = await chat.send("…", { json: true });
+  const data = reply.json();
+} catch (err) {
+  if (err instanceof StructuredOutputError) {
+    console.warn("Output was not valid JSON:", err.cause);
+  } else {
+    throw err;
+  }
+}
+```
+
+### Schema tips
+
+- Mark required fields explicitly. xgrammar will still emit unrequired fields if the model decides to, which usually inflates token count for no reason.
+- Prefer `enum` over free-form strings whenever the answer comes from a small fixed set — the model never has to "spell" the value, so latency and accuracy both improve.
+- Bound array sizes (`minItems` / `maxItems`) to avoid runaway generations.
+- The SDK does **not** validate the parsed value against the schema — constrained decoding makes that redundant in the happy path. If you want defense-in-depth (e.g. a different model, an upstream cache layer, or a third-party `response_format` provider), pair `.json()` with [Ajv](https://ajv.js.org/) or [Zod](https://zod.dev/) on your side.
+
+For a runnable end-to-end demo, see [`examples/vite-structured/`](../examples/vite-structured/).
 
 ## Available models
 
@@ -433,7 +543,9 @@ export default defineConfig({
 
 ## Next steps
 
-- Browse the [examples folder](../examples/) for runnable integrations.
+- Browse the [examples folder](../examples/) for runnable integrations:
+  - [`vite-chat/`](../examples/vite-chat/) — minimal streaming chat with `AbortSignal`.
+  - [`vite-structured/`](../examples/vite-structured/) — JSON mode and `jsonSchema` constrained decoding side by side.
 - Read the [security policy](../README.md#security) before deploying.
 - Track upcoming features in the [versioning roadmap](../README.md#versioning-roadmap).
 
