@@ -31,9 +31,16 @@
     "clean": "rm -rf dist"
   },
   "peerDependencies": {
-    "@mlc-ai/web-llm": "^0.2.79"
+    "@mlc-ai/web-llm": "^0.2.79",
+    "@huggingface/transformers": "^4.2.0"
+  },
+  "peerDependenciesMeta": {
+    "@huggingface/transformers": {
+      "optional": true
+    }
   },
   "devDependencies": {
+    "@huggingface/transformers": "^4.2.0",
     "@mlc-ai/web-llm": "^0.2.79",
     "@types/node": "^22.10.0",
     "@typescript-eslint/eslint-plugin": "^8.18.0",
