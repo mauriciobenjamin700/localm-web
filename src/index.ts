@@ -8,6 +8,8 @@
 
 export { Chat } from "./tasks/chat";
 export { Completion } from "./tasks/completion";
+export { Embeddings } from "./tasks/embeddings";
+export type { EmbeddingsCreateOptions, EmbedOptions, EmbedPipeline } from "./tasks/embeddings";
 export { Reranker } from "./tasks/reranker";
 export type {
   RerankerCreateOptions,
@@ -24,11 +26,14 @@ export {
   MODEL_PRESETS,
   resolveModelPreset,
   listSupportedModels,
+  EMBEDDING_PRESETS,
+  resolveEmbeddingPreset,
+  listSupportedEmbeddingModels,
   RERANKER_PRESETS,
   resolveRerankerPreset,
   listSupportedRerankerModels,
 } from "./presets/models";
-export type { RerankerPreset } from "./presets/models";
+export type { EmbeddingPreset, RerankerPreset } from "./presets/models";
 
 export {
   LocalmWebError,
