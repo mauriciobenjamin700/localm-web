@@ -1,4 +1,5 @@
 import type { Engine } from "./engine";
+import { classifyLoadPhase } from "./load-phase";
 import type { GenerationOptions, Message, ProgressCallback, TokenChunk } from "../types";
 import {
   GenerationAbortedError,
@@ -81,8 +82,16 @@ export class WebLLMEngine implements Engine {
             text: report.text,
             loaded: 0,
             total: 0,
+            phase: classifyLoadPhase(report.text),
           });
         },
+      });
+      onProgress?.({
+        progress: 1,
+        text: "Model ready.",
+        loaded: 0,
+        total: 0,
+        phase: "ready",
       });
     } catch (err) {
       throw new ModelLoadError(`Failed to load model "${modelId}".`, err);

@@ -17,6 +17,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Engine.complete()` and `Engine.streamCompletion()` methods on the
   runtime-agnostic engine contract. `WebLLMEngine` implements both via
   `engine.completions.create()` (raw text mode, bypasses chat template).
+- `ModelLoadPhase` discriminated string type
+  (`"downloading" | "compiling" | "loading" | "ready"`) on `ModelLoadProgress`.
+  Lets consumers drive UI state machines (spinner → progress bar → ready
+  badge) without parsing the runtime's free-form status text.
+- `WebLLMEngine.load()` classifies each progress report via
+  `classifyLoadPhase()` and emits a final `phase: "ready"` event exactly
+  once when the load resolves successfully.
 - `WorkerEngine` — `Engine` implementation that proxies all calls to a Web
   Worker via a typed RPC protocol. Lets consumers run inference off the UI
   thread.
@@ -43,6 +50,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `ProgressCallback` payload shape gained a required `phase` field. This is
+  technically a breaking change but the SDK is pre-1.0 and the type is
+  emitted only by the engine — consumers were already supposed to treat
+  the payload as opaque.
 - `vite.config.ts` adds `worker.format = "es"` and externalizes ORT-Web /
   HF deps from the worker bundle. `@mlc-ai/web-llm` is intentionally
   bundled into the worker chunk because workers cannot resolve bare
