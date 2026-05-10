@@ -136,6 +136,80 @@ export class WorkerEngine implements Engine {
     }
   }
 
+  async complete(prompt: string, options: GenerationOptions = {}): Promise<string> {
+    const id: number = this.allocateId();
+    return new Promise<string>((resolve, reject) => {
+      this.pendingGenerates.set(id, { resolve, reject });
+      this.send({
+        op: "complete",
+        id,
+        prompt,
+        options: toSerializableOptions(options),
+      });
+      options.signal?.addEventListener("abort", () => this.send({ op: "abort", id }));
+    });
+  }
+
+  async *streamCompletion(
+    prompt: string,
+    options: GenerationOptions = {}
+  ): AsyncIterable<TokenChunk> {
+    const id: number = this.allocateId();
+    const queue: TokenChunk[] = [];
+    let done: boolean = false;
+    let error: Error | null = null;
+    let notify: (() => void) | null = null;
+
+    const wakeup = (): void => {
+      if (notify) {
+        const fn = notify;
+        notify = null;
+        fn();
+      }
+    };
+
+    this.pendingStreams.set(id, {
+      push: (chunk): void => {
+        queue.push(chunk);
+        wakeup();
+      },
+      end: (): void => {
+        done = true;
+        wakeup();
+      },
+      fail: (err): void => {
+        error = err;
+        done = true;
+        wakeup();
+      },
+    });
+
+    this.send({
+      op: "stream-completion",
+      id,
+      prompt,
+      options: toSerializableOptions(options),
+    });
+    options.signal?.addEventListener("abort", () => this.send({ op: "abort", id }));
+
+    try {
+      while (true) {
+        if (queue.length > 0) {
+          const chunk = queue.shift();
+          if (chunk) yield chunk;
+          continue;
+        }
+        if (error) throw error;
+        if (done) return;
+        await new Promise<void>((r) => {
+          notify = r;
+        });
+      }
+    } finally {
+      this.pendingStreams.delete(id);
+    }
+  }
+
   async unload(): Promise<void> {
     if (!this.loaded) return;
     if (this.currentUnload) {

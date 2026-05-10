@@ -44,6 +44,42 @@ async function handleGenerate(req: Extract<WorkerRequest, { op: "generate" }>): 
   }
 }
 
+async function handleComplete(req: Extract<WorkerRequest, { op: "complete" }>): Promise<void> {
+  const controller: AbortController = new AbortController();
+  aborts.set(req.id, controller);
+  try {
+    const text: string = await engine.complete(req.prompt, {
+      ...req.options,
+      signal: controller.signal,
+    });
+    reply({ op: "generated", id: req.id, text });
+  } catch (err) {
+    fail(req.id, err);
+  } finally {
+    aborts.delete(req.id);
+  }
+}
+
+async function handleStreamCompletion(
+  req: Extract<WorkerRequest, { op: "stream-completion" }>
+): Promise<void> {
+  const controller: AbortController = new AbortController();
+  aborts.set(req.id, controller);
+  try {
+    for await (const chunk of engine.streamCompletion(req.prompt, {
+      ...req.options,
+      signal: controller.signal,
+    })) {
+      reply({ op: "token", id: req.id, chunk });
+    }
+    reply({ op: "stream-end", id: req.id });
+  } catch (err) {
+    fail(req.id, err);
+  } finally {
+    aborts.delete(req.id);
+  }
+}
+
 async function handleStream(req: Extract<WorkerRequest, { op: "stream" }>): Promise<void> {
   const controller: AbortController = new AbortController();
   aborts.set(req.id, controller);
@@ -90,6 +126,12 @@ self.addEventListener("message", (event: MessageEvent<WorkerRequest>): void => {
       return;
     case "stream":
       void handleStream(req);
+      return;
+    case "complete":
+      void handleComplete(req);
+      return;
+    case "stream-completion":
+      void handleStreamCompletion(req);
       return;
     case "unload":
       void handleUnload(req);

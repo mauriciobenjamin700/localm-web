@@ -32,6 +32,18 @@ export type WorkerRequest =
       messages: Message[];
       options: SerializableGenerationOptions;
     }
+  | {
+      op: "complete";
+      id: number;
+      prompt: string;
+      options: SerializableGenerationOptions;
+    }
+  | {
+      op: "stream-completion";
+      id: number;
+      prompt: string;
+      options: SerializableGenerationOptions;
+    }
   | { op: "abort"; id: number }
   | { op: "unload"; id: number }
   | { op: "isLoaded"; id: number };
