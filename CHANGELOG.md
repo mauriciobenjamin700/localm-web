@@ -36,10 +36,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   inference on the main thread. Default flips to `true` in v0.3 once the
   Cache API / OPFS integration validates worker-thread storage access.
 - `src/worker/protocol.ts` — discriminated-union message contract between
-  main thread and worker (`load`, `generate`, `stream`, `abort`, `unload`,
-  `isLoaded` requests; `loaded`, `progress`, `generated`, `token`,
-  `stream-end`, `error`, `unloaded`, `is-loaded` responses). Numeric op
-  ids isolate concurrent operations.
+  main thread and worker (`load`, `generate`, `stream`, `complete`,
+  `stream-completion`, `abort`, `unload`, `isLoaded` requests; `loaded`,
+  `progress`, `generated`, `token`, `stream-end`, `error`, `unloaded`,
+  `is-loaded` responses). Numeric op ids isolate concurrent operations.
 - `WorkerLike` interface exported for tests and custom integrations that
   need to inject a transport (mocks, Comlink wrappers, MessagePort
   bridges).
@@ -47,6 +47,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   progress, generate round-trip, abort propagation, signal stripping,
   streaming queue, error mapping, unload short-circuit, terminate, and
   concurrent-load rejection.
+- `ModelCache` class in `src/cache/model-cache.ts` — inspect and manage
+  cached model weights from a consuming app:
+  - `has(modelId)` / `delete(modelId)` wrap WebLLM's `hasModelInCache` /
+    `deleteModelInCache`, validating the friendly id against the
+    registry first.
+  - `list()` iterates `MODEL_PRESETS` and returns the cached subset as
+    `CachedModelEntry[]` with friendly id, backend id, family, params.
+    Empty list when nothing is cached (per the project's
+    `*NotFoundError`-free convention).
+  - `clear()` deletes every registry model in parallel — useful for
+    logout / reset flows.
+  - `estimateUsage()` wraps `navigator.storage.estimate()` and returns
+    `{ usage, quota }`. Falls back to zeros when the API is missing.
+  - `ModelCache.assertKnown(modelId)` static guard that throws
+    `UnknownModelError` for ids outside the registry.
+- Public types: `CachedModelEntry`, `CacheUsage`, `ModelCacheOptions`
+  re-exported from `src/index.ts`.
+- Dependency-injectable backend (`hasModel`, `deleteModel`, `estimate`
+  hooks) so unit tests can mock the runtime + browser APIs without
+  touching the real Cache API or `@mlc-ai/web-llm`.
+- 15 unit tests in `test/model-cache.test.ts` covering `has` / `delete`
+  / `list` / `clear` / `estimateUsage` and `assertKnown`, including
+  navigator fallbacks via `vi.stubGlobal`.
 
 ### Changed
 
@@ -65,6 +88,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   bundler depends on `crypto.hash()` which lands in Node 19; Node 18
   also reaches end-of-life on 2025-04-30 per the Node release schedule.
 - CI matrix dropped Node 18, kept 20 + 22.
+
+### Notes
+
+- `ModelCache` is **inspection + management only**. Actual weight
+  download still flows through WebLLM's internal Cache-API path.
+  OPFS-as-primary-storage and resume-on-interrupted-download (also in
+  the v0.2 roadmap) require intercepting the WebLLM downloader and
+  are deferred to v0.3 to avoid forking upstream.
 
 ## [0.1.0] - 2026-05-10
 
