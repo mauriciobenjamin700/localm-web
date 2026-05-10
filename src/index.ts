@@ -27,6 +27,9 @@ export {
 
 export type { Engine } from "./core/engine";
 
+export { ModelCache } from "./cache";
+export type { CachedModelEntry, CacheUsage, ModelCacheOptions } from "./cache";
+
 export { collectStream, tap } from "./streaming/token-stream";
 
 export type {

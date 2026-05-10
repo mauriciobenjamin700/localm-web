@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `ModelCache` class in `src/cache/model-cache.ts` — inspect and manage
+  cached model weights from a consuming app:
+  - `has(modelId)` / `delete(modelId)` wrap WebLLM's `hasModelInCache` /
+    `deleteModelInCache`, validating the friendly id against the
+    registry first.
+  - `list()` iterates `MODEL_PRESETS` and returns the cached subset as
+    `CachedModelEntry[]` with friendly id, backend id, family, params.
+    Empty list when nothing is cached (per the project's
+    `*NotFoundError`-free convention).
+  - `clear()` deletes every registry model in parallel — useful for
+    logout / reset flows.
+  - `estimateUsage()` wraps `navigator.storage.estimate()` and returns
+    `{ usage, quota }`. Falls back to zeros when the API is missing.
+  - `ModelCache.assertKnown(modelId)` static guard that throws
+    `UnknownModelError` for ids outside the registry.
+- Public types: `CachedModelEntry`, `CacheUsage`, `ModelCacheOptions`
+  re-exported from `src/index.ts`.
+- Dependency-injectable backend (`hasModel`, `deleteModel`, `estimate`
+  hooks) so unit tests can mock the runtime + browser APIs without
+  touching the real Cache API or `@mlc-ai/web-llm`.
+- 15 unit tests in `test/model-cache.test.ts` covering `has` / `delete`
+  / `list` / `clear` / `estimateUsage` and `assertKnown`, including
+  navigator fallbacks via `vi.stubGlobal`.
+
+### Notes
+
+- `ModelCache` is **inspection + management only**. Actual weight
+  download still flows through WebLLM's internal Cache-API path.
+  OPFS-as-primary-storage and resume-on-interrupted-download (also in
+  the v0.2 roadmap) require intercepting the WebLLM downloader and
+  are deferred to v0.3 to avoid forking upstream.
+
 ## [0.1.0] - 2026-05-10
 
 ### Added
