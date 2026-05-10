@@ -7,10 +7,12 @@ import {
   ModelNotLoadedError,
   WebGPUUnavailableError,
 } from "./exceptions";
+import { serializeJsonSchema } from "../structured/json-schema";
 
 type WebLLMModule = typeof import("@mlc-ai/web-llm");
 type MLCEngine = import("@mlc-ai/web-llm").MLCEngineInterface;
 type ChatCompletionMessageParam = import("@mlc-ai/web-llm").ChatCompletionMessageParam;
+type ResponseFormat = import("@mlc-ai/web-llm").ResponseFormat;
 
 let webllmModulePromise: Promise<WebLLMModule> | null = null;
 
@@ -37,6 +39,25 @@ function buildSamplingParams(options: GenerationOptions): SamplingParams {
   if (options.temperature !== undefined) params.temperature = options.temperature;
   if (options.topP !== undefined) params.top_p = options.topP;
   return params;
+}
+
+/**
+ * Build the WebLLM `response_format` payload from generation options.
+ *
+ * Returns `undefined` when the caller has not requested structured output —
+ * letting WebLLM use its default free-text decoding path. When `jsonSchema`
+ * is set it takes priority and is serialized into the `schema` field
+ * (xgrammar parses it server-side). When only `json` is set the payload
+ * carries `{ type: "json_object" }` for unconstrained-but-valid JSON.
+ */
+function buildResponseFormat(options: GenerationOptions): ResponseFormat | undefined {
+  if (options.jsonSchema !== undefined) {
+    return { type: "json_object", schema: serializeJsonSchema(options.jsonSchema) };
+  }
+  if (options.json) {
+    return { type: "json_object" };
+  }
+  return undefined;
 }
 
 function toChatMessages(messages: Message[]): ChatCompletionMessageParam[] {
@@ -103,10 +124,12 @@ export class WebLLMEngine implements Engine {
     if (options.signal?.aborted) {
       throw new GenerationAbortedError("Generation aborted before start.");
     }
+    const responseFormat = buildResponseFormat(options);
     const completion = await engine.chat.completions.create({
       ...buildSamplingParams(options),
       messages: toChatMessages(messages),
       stream: false,
+      ...(responseFormat ? { response_format: responseFormat } : {}),
     });
     return completion.choices[0]?.message?.content ?? "";
   }
@@ -116,10 +139,12 @@ export class WebLLMEngine implements Engine {
     if (options.signal?.aborted) {
       throw new GenerationAbortedError("Generation aborted before start.");
     }
+    const responseFormat = buildResponseFormat(options);
     const completion = await engine.chat.completions.create({
       ...buildSamplingParams(options),
       messages: toChatMessages(messages),
       stream: true,
+      ...(responseFormat ? { response_format: responseFormat } : {}),
     });
     let index: number = 0;
     let finished: boolean = false;
@@ -154,10 +179,12 @@ export class WebLLMEngine implements Engine {
     if (options.signal?.aborted) {
       throw new GenerationAbortedError("Generation aborted before start.");
     }
+    const responseFormat = buildResponseFormat(options);
     const completion = await engine.completions.create({
       ...buildSamplingParams(options),
       prompt,
       stream: false,
+      ...(responseFormat ? { response_format: responseFormat } : {}),
     });
     return completion.choices[0]?.text ?? "";
   }
@@ -170,10 +197,12 @@ export class WebLLMEngine implements Engine {
     if (options.signal?.aborted) {
       throw new GenerationAbortedError("Generation aborted before start.");
     }
+    const responseFormat = buildResponseFormat(options);
     const completion = await engine.completions.create({
       ...buildSamplingParams(options),
       prompt,
       stream: true,
+      ...(responseFormat ? { response_format: responseFormat } : {}),
     });
     let index: number = 0;
     let finished: boolean = false;

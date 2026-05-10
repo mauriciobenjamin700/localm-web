@@ -1,3 +1,4 @@
+import { parseStructuredOutput } from "./structured/json-schema";
 import type { FinishReason, Message } from "./types";
 
 /**
@@ -17,6 +18,21 @@ export class ChatReply {
     /** Why the generation loop stopped. */
     public readonly finishReason: FinishReason
   ) {}
+
+  /**
+   * Parse {@link ChatReply.text} as JSON.
+   *
+   * Intended for replies generated with `json: true` or `jsonSchema`.
+   * The result is cast to `T` without runtime validation; pair with Zod /
+   * Ajv on the call site if you need to verify the schema.
+   *
+   * @typeParam T - Expected parsed shape.
+   * @returns The parsed JSON value.
+   * @throws StructuredOutputError if the text is not valid JSON.
+   */
+  json<T = unknown>(): T {
+    return parseStructuredOutput<T>(this.text);
+  }
 }
 
 /**
@@ -36,4 +52,18 @@ export class CompletionResult {
     /** Why the generation loop stopped. */
     public readonly finishReason: FinishReason
   ) {}
+
+  /**
+   * Parse {@link CompletionResult.text} as JSON.
+   *
+   * Intended for completions generated with `json: true` or `jsonSchema`.
+   * The result is cast to `T` without runtime validation.
+   *
+   * @typeParam T - Expected parsed shape.
+   * @returns The parsed JSON value.
+   * @throws StructuredOutputError if the text is not valid JSON.
+   */
+  json<T = unknown>(): T {
+    return parseStructuredOutput<T>(this.text);
+  }
 }

@@ -31,8 +31,23 @@ export interface GenerationOptions {
   /** Cancellation signal. When triggered, the engine stops generation. */
   signal?: AbortSignal;
   /**
-   * JSON Schema for structured output. The engine constrains decoding to
-   * produce a string parseable as JSON matching the schema. Planned for v0.4.
+   * Force the engine to emit a string parseable as JSON.
+   *
+   * When `true` (and `jsonSchema` is not also set), the engine maps to
+   * WebLLM's `response_format: { type: "json_object" }` — the model is free
+   * to choose any JSON shape, but the output is guaranteed to parse.
+   *
+   * Ignored when {@link GenerationOptions.jsonSchema} is set.
+   */
+  json?: boolean;
+  /**
+   * JSON Schema for structured output. When set, the engine constrains
+   * decoding (xgrammar inside WebLLM) so the output parses as JSON matching
+   * the schema. Takes priority over {@link GenerationOptions.json}.
+   *
+   * The schema is passed verbatim to the runtime — the SDK does not validate
+   * the parsed value against it. Use Ajv/Zod on the consumer side if you
+   * need runtime validation in addition to constrained decoding.
    */
   jsonSchema?: object;
 }

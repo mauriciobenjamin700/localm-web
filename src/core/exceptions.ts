@@ -41,3 +41,12 @@ export class QuotaExceededError extends LocalmWebError {}
 
 /** Thrown when no usable backend is available on the current platform. */
 export class BackendNotAvailableError extends LocalmWebError {}
+
+/**
+ * Thrown when structured output (JSON mode or JSON Schema constrained
+ * decoding) fails to parse as valid JSON.
+ *
+ * Wraps the underlying `SyntaxError` from `JSON.parse` so consumers can
+ * distinguish SDK-issued failures from unrelated runtime exceptions.
+ */
+export class StructuredOutputError extends LocalmWebError {}

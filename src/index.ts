@@ -44,7 +44,14 @@ export {
   GenerationAbortedError,
   QuotaExceededError,
   BackendNotAvailableError,
+  StructuredOutputError,
 } from "./core/exceptions";
+
+export {
+  assertJsonSchema,
+  serializeJsonSchema,
+  parseStructuredOutput,
+} from "./structured/json-schema";
 
 export type { Engine } from "./core/engine";
 export { WorkerEngine } from "./core/worker-engine";
