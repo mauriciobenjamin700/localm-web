@@ -1,6 +1,8 @@
 import type { Engine } from "../core/engine";
 import { WebLLMEngine } from "../core/webllm-engine";
+import { WorkerEngine } from "../core/worker-engine";
 import { resolveModelPreset } from "../presets/models";
+import { createInferenceWorker } from "../worker/create-worker";
 import type { ModelPreset, ProgressCallback } from "../types";
 
 /** Common options accepted by every task's `create()` factory. */
@@ -12,6 +14,15 @@ export interface LMTaskCreateOptions {
    * Production callers should let the SDK pick a backend automatically.
    */
   engine?: Engine;
+  /**
+   * Run inference inside a Web Worker, isolating the UI thread from
+   * tokenization and generation. Defaults to `false` in v0.2 (opt-in) and
+   * will flip to `true` in v0.3 once the Cache API / OPFS integration
+   * (also v0.2) has been validated against worker-thread storage access.
+   *
+   * Ignored when {@link engine} is provided.
+   */
+  inWorker?: boolean;
 }
 
 /** Internal payload returned by {@link LMTask.createEngine}. */
@@ -52,11 +63,18 @@ export abstract class LMTask {
     options: LMTaskCreateOptions = {}
   ): Promise<ResolvedEngine> {
     const preset = resolveModelPreset(modelId);
-    const engine = options.engine ?? new WebLLMEngine();
+    const engine = options.engine ?? LMTask.defaultEngine(options);
     if (!engine.isLoaded()) {
       await engine.load(preset.webllmId, options.onProgress);
     }
     return { engine, preset };
+  }
+
+  private static defaultEngine(options: LMTaskCreateOptions): Engine {
+    if (options.inWorker) {
+      return new WorkerEngine(createInferenceWorker());
+    }
+    return new WebLLMEngine();
   }
 
   /** Release engine resources. Safe to call multiple times. */
