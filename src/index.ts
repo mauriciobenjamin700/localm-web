@@ -36,6 +36,7 @@ export type {
   Message,
   GenerationOptions,
   ModelLoadProgress,
+  ModelLoadPhase,
   ProgressCallback,
   TokenChunk,
   ModelPreset,

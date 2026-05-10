@@ -37,6 +37,19 @@ export interface GenerationOptions {
   jsonSchema?: object;
 }
 
+/**
+ * Lifecycle phase of a model load.
+ *
+ * - `downloading`: weight files are being fetched from the network or cache.
+ * - `compiling`: the runtime is preparing the model (shader compilation,
+ *   tensor allocation, KV cache setup).
+ * - `loading`: a generic "still working" phase reported by the runtime when
+ *   it has not classified the work into download or compile.
+ * - `ready`: the model is loaded and the engine is ready for inference.
+ *   Emitted exactly once, at the end of a successful load.
+ */
+export type ModelLoadPhase = "downloading" | "compiling" | "loading" | "ready";
+
 /** Progress event emitted while a model is loading. */
 export interface ModelLoadProgress {
   /** Fraction of total work completed, in [0, 1]. */
@@ -47,6 +60,8 @@ export interface ModelLoadProgress {
   loaded: number;
   /** Total bytes to load. 0 when unavailable. */
   total: number;
+  /** Lifecycle phase classified from the runtime's status text. */
+  phase: ModelLoadPhase;
 }
 
 /** Callback signature for model load progress. */
