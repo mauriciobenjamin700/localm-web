@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Structured output (v0.4)** — JSON mode and JSON Schema constrained
+  decoding via WebLLM's `response_format` / xgrammar.
+  - `GenerationOptions.json: boolean` — when `true`, the engine is forced
+    to emit a string parseable as JSON (free-form shape).
+    `GenerationOptions.jsonSchema?: object` — when set, takes priority
+    over `json` and constrains decoding so the output matches the schema.
+  - `ChatReply.json<T>()` and `CompletionResult.json<T>()` parse the
+    generated text and return it cast to `T`. No runtime validation of
+    the schema is performed; pair with Ajv / Zod on the call site if you
+    need it.
+  - `StructuredOutputError` (extends `LocalmWebError`) wraps the
+    underlying `SyntaxError` from `JSON.parse`, so consumers can
+    distinguish SDK-issued failures from unrelated runtime exceptions.
+  - `src/structured/json-schema.ts` exposes `assertJsonSchema`,
+    `serializeJsonSchema`, and `parseStructuredOutput<T>` re-exported
+    from `localm-web`.
+  - `WebLLMEngine.generate` / `stream` / `complete` / `streamCompletion`
+    forward `response_format` to WebLLM. Worker engine inherits the
+    behavior without changes (the worker protocol already passes
+    `GenerationOptions` through `postMessage`; only `signal` is stripped).
+- 15 unit tests in `test/structured-output.test.ts` covering schema
+  assertion (accept / reject paths), schema serialization, JSON parsing
+  of objects / arrays / primitives / invalid input, error chaining via
+  `cause`, and the `.json()` helpers on `ChatReply` and
+  `CompletionResult`.
+
 ## [0.3.0] - 2026-05-10
 
 ### Changed
