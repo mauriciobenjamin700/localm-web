@@ -9,6 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `Embeddings` task in `src/tasks/embeddings.ts` — sentence embeddings
+  via `@huggingface/transformers`. `Embeddings.create(modelId, options?)`
+  returns an instance; `embed(texts: string[], options?)` returns
+  `number[][]`; `embedSingle(text)` returns `number[]`. Empty input
+  yields `[]` (per project convention — no NotFoundError on empty).
+  Default pooling `"mean"`, default `normalize: true`.
+- `EMBEDDING_PRESETS` registry with `bge-small-en-v1.5` (384-dim) and
+  `bge-base-en-v1.5` (768-dim). `resolveEmbeddingPreset(id)` and
+  `listSupportedEmbeddingModels()` helpers.
+- Public types: `EmbeddingPreset`, `EmbeddingsCreateOptions`,
+  `EmbedOptions`, `EmbedPipeline` (DI hook for tests).
+- `peerDependenciesMeta` marks `@huggingface/transformers` as
+  optional — Chat / Completion users do not need to install it.
+- 10 unit tests in `test/embeddings.test.ts` covering registry
+  resolution, batch + single embedding, empty input short-circuit,
+  pooling / normalize defaults and overrides, unload delegation,
+  graceful unload when pipeline omits `unload()`.
+
+## [0.2.0] - 2026-05-10
+
+### Added
+
 - `docs/getting-started.md` — end-to-end guide covering prerequisites,
   install, first chat snippet, the curated model registry with download /
   RAM estimates, how a model downloads and where it caches, running the
