@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **CI / dev runtime moved to Node 22 + 24.**
+  - `engines.node` bumped from `>=20.19.0` to `>=22.0.0`. Node 20
+    reached end-of-life on 2026-04-30 per the Node release schedule
+    and the `Release to npm` workflow started warning about
+    `actions/checkout@v4` / `actions/setup-node@v4` running on Node 20.
+  - CI matrix in `.github/workflows/ci.yml` flipped from `["20", "22"]`
+    to `["22", "24"]`.
+  - Release workflow (`.github/workflows/release-npm.yml`) now sets up
+    Node 22 (was 20).
+  - `actions/checkout@v4` → `@v5` and `actions/setup-node@v4` → `@v5`
+    in both workflows. Eliminates the Node 20 deprecation notice that
+    appeared on the v0.4.0 publish run.
+- `docs/getting-started.md` prerequisite row updated to reflect the
+  new Node 22+ requirement.
+
 ## [0.4.0] - 2026-05-10
 
 ### Added
