@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **ORT-Web fallback path (v0.5)** — `TransformersTextEngine` in
+  `src/core/transformers-engine.ts` implements the runtime-agnostic
+  `Engine` contract on top of
+  [`@huggingface/transformers`](https://github.com/huggingface/transformers.js).
+  Lazy-imports the optional peer dep so the WebLLM hot path stays slim.
+  Runs ONNX models on WebGPU when available and on WASM-SIMD otherwise,
+  with a `TextStreamer` → async-iterable bridge for `stream()` /
+  `streamCompletion()` parity with `WebLLMEngine`.
+- **Backend selector + auto-routing** — new `BackendChoice` type
+  (`"auto" | "webllm" | "transformers"`) on `LMTaskCreateOptions.backend`.
+  `"auto"` (default) picks WebLLM when WebGPU is available and falls
+  back to the transformers.js engine otherwise. `resolveBackend(choice,
+preset, webGPUAvailable)` exported from the package root for unit
+  tests and custom routing logic. `BackendNotAvailableError` is raised
+  when no backend can satisfy the request (e.g. `"transformers"` forced
+  on a preset without `transformersId`).
+- `ModelPreset.transformersId?: string` — HuggingFace Hub repo id used
+  by the transformers.js fallback. Replaces the unused `ortUrl` field.
+- 4 presets now carry `transformersId` mappings: `phi-3.5-mini-int4`,
+  `llama-3.2-1b-int4`, `qwen2.5-1.5b-int4`, and the new
+  `smollm2-360m-int8` (the smallest viable chat model, intended as the
+  default for low-end devices on the fallback path).
+- Public exports: `TransformersTextEngine`, `WebLLMEngine`,
+  `resolveBackend`, `BackendChoice`.
+- 6 unit tests in `test/resolve-backend.test.ts` covering each
+  combination of `BackendChoice` × WebGPU availability × preset
+  capability, including the two `BackendNotAvailableError` paths.
+
 ### Changed
 
 - **CI / dev runtime moved to Node 22 + 24.**

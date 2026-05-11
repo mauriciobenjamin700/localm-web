@@ -11,6 +11,7 @@ A practical walkthrough for downloading a model and running your first prompt lo
 - [First chat in 10 lines](#first-chat-in-10-lines)
 - [Embeddings and Reranker for retrieval](#embeddings-and-reranker-for-retrieval)
 - [Structured output](#structured-output)
+- [Backends and the ORT-Web fallback](#backends-and-the-ort-web-fallback)
 - [Available models](#available-models)
 - [How a model downloads](#how-a-model-downloads)
 - [Where the model lives on disk](#where-the-model-lives-on-disk)
@@ -23,13 +24,13 @@ A practical walkthrough for downloading a model and running your first prompt lo
 
 ## Prerequisites
 
-| Requirement                                                                          | Why                                                                                                          |
-| ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------ |
-| **Chrome 113+ / Edge 113+ / Safari 18+ / Firefox Nightly with `dom.webgpu.enabled`** | The SDK runs models on the GPU via WebGPU. The WASM fallback lands in v0.5; until then, WebGPU is mandatory. |
-| **HTTPS or `localhost`**                                                             | WebGPU is gated to secure contexts. `vite dev` serves on `localhost` so this is automatic in development.    |
-| **8 GB RAM minimum, 16 GB recommended**                                              | Quantized SLMs need 1–4 GB of GPU memory plus a few hundred MB for the runtime.                              |
-| **Stable network for the first load**                                                | Weights are downloaded from a public CDN (HuggingFace mirror). Subsequent loads come from the local cache.   |
-| **Node 22+ for the dev workflow**                                                    | The SDK itself is browser-only, but the build tooling (Vite, Vitest) needs Node 22 or 24 (CI matrix).        |
+| Requirement                                                                          | Why                                                                                                                                                                                                    |
+| ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Chrome 113+ / Edge 113+ / Safari 18+ / Firefox Nightly with `dom.webgpu.enabled`** | The SDK runs models on the GPU via WebGPU when available. The transformers.js + WASM-SIMD fallback (v0.5) lifts the strict requirement, but WebGPU is still ~10× faster — keep it on whenever you can. |
+| **HTTPS or `localhost`**                                                             | WebGPU is gated to secure contexts. `vite dev` serves on `localhost` so this is automatic in development.                                                                                              |
+| **8 GB RAM minimum, 16 GB recommended**                                              | Quantized SLMs need 1–4 GB of GPU memory plus a few hundred MB for the runtime.                                                                                                                        |
+| **Stable network for the first load**                                                | Weights are downloaded from a public CDN (HuggingFace mirror). Subsequent loads come from the local cache.                                                                                             |
+| **Node 22+ for the dev workflow**                                                    | The SDK itself is browser-only, but the build tooling (Vite, Vitest) needs Node 22 or 24 (CI matrix).                                                                                                  |
 
 To confirm WebGPU is enabled in your browser, open the DevTools console and run:
 
@@ -265,6 +266,73 @@ try {
 
 For a runnable end-to-end demo, see [`examples/vite-structured/`](../examples/vite-structured/).
 
+## Backends and the ORT-Web fallback
+
+From v0.5 the SDK ships two interchangeable inference backends:
+
+| Backend                                       | Driver                                                                        | Runs on                 | Trade-off                                                       |
+| --------------------------------------------- | ----------------------------------------------------------------------------- | ----------------------- | --------------------------------------------------------------- |
+| **WebLLM** (default when WebGPU is available) | [`@mlc-ai/web-llm`](https://github.com/mlc-ai/web-llm)                        | WebGPU only             | Fastest tokens/s, full xgrammar support, smallest startup cost. |
+| **transformers.js fallback**                  | [`@huggingface/transformers`](https://github.com/huggingface/transformers.js) | WebGPU **or** WASM-SIMD | Wider browser support (works without WebGPU), slower on CPU.    |
+
+The backend is picked automatically — you almost never have to think about it. Pass `backend` in `LMTaskCreateOptions` to override:
+
+```typescript
+import { Chat } from "localm-web";
+
+// Default — picks WebLLM if WebGPU is available, else transformers.js
+const chat = await Chat.create("phi-3.5-mini-int4");
+
+// Force the fallback (useful for testing the WASM path on a WebGPU-capable browser)
+const fb = await Chat.create("phi-3.5-mini-int4", { backend: "transformers" });
+
+// Force WebLLM (will throw WebGPUUnavailableError on a browser without WebGPU)
+const fast = await Chat.create("phi-3.5-mini-int4", { backend: "webllm" });
+```
+
+`BackendChoice` is the public type: `"auto" | "webllm" | "transformers"`.
+
+### Optional peer dep
+
+The fallback runtime is an **optional** peer dependency. Install it only when you want the fallback path:
+
+```bash
+npm install @huggingface/transformers
+```
+
+When `backend: "auto"` resolves to transformers but the package is not installed, the dynamic import fails with `ModelLoadError`. WebLLM consumers can safely omit it.
+
+### Models that support both backends
+
+Each `ModelPreset` may carry both a `webllmId` and a `transformersId`. The curated registry ships dual mappings for the three v0.1 chat presets plus a new tiny entry tuned for the fallback path:
+
+```typescript
+import { resolveModelPreset, listSupportedModels } from "localm-web";
+
+for (const id of listSupportedModels()) {
+  const preset = resolveModelPreset(id);
+  console.log(id, "→ webllm:", preset.webllmId, "transformers:", preset.transformersId ?? "(none)");
+}
+```
+
+If you force `backend: "transformers"` on a preset with no `transformersId`, the SDK raises `BackendNotAvailableError` immediately — no silent fallback to WebLLM.
+
+### Custom routing
+
+Use the exported `resolveBackend` helper to test your routing logic:
+
+```typescript
+import { resolveBackend, resolveModelPreset } from "localm-web";
+
+const preset = resolveModelPreset("phi-3.5-mini-int4");
+const chosen = resolveBackend("auto", preset, "gpu" in navigator);
+console.log(chosen); // "webllm" or "transformers"
+```
+
+### Worker note
+
+The bundled inference Web Worker only knows about WebLLM in v0.5. When the resolved backend is `"transformers"` the SDK runs inference on the main thread regardless of `inWorker`. Heavy generations may jank frames on low-end devices — keep the prompt short or pre-warm the page transition. A worker variant for the transformers.js path is on the v0.6 roadmap.
+
 ## Available models
 
 The SDK ships with a curated registry. Every entry has been validated to load in WebGPU-enabled browsers and to fit the SLM target (≤ 4B parameters at INT4):
@@ -498,6 +566,8 @@ Causes and fixes:
 - **Linux + Mesa.** Some integrated drivers are blocked; launch Chrome with `--enable-features=Vulkan` to test.
 - **Headless or sandboxed environments.** WebGPU is disabled in many CI/headless browsers. Validate the SDK in a real browser.
 - **HTTP, not HTTPS.** Move to `localhost` or HTTPS — `http://192.168.x.x` does not enable WebGPU.
+
+> **v0.5 update:** With `backend: "auto"` (the default), `localm-web` automatically routes to the transformers.js fallback when WebGPU is unavailable, so you usually get a working chat instead of an error — at the cost of slower CPU inference. You only see `WebGPUUnavailableError` if you explicitly pass `backend: "webllm"`. See [Backends and the ORT-Web fallback](#backends-and-the-ort-web-fallback).
 
 ### Model load stalls at 0 %
 
