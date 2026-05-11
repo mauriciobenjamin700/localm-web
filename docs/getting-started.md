@@ -29,7 +29,7 @@ A practical walkthrough for downloading a model and running your first prompt lo
 | **HTTPS or `localhost`**                                                             | WebGPU is gated to secure contexts. `vite dev` serves on `localhost` so this is automatic in development.    |
 | **8 GB RAM minimum, 16 GB recommended**                                              | Quantized SLMs need 1–4 GB of GPU memory plus a few hundred MB for the runtime.                              |
 | **Stable network for the first load**                                                | Weights are downloaded from a public CDN (HuggingFace mirror). Subsequent loads come from the local cache.   |
-| **Node 18+ for the dev workflow**                                                    | The SDK itself is browser-only, but the build tooling (Vite, Vitest) needs Node.                             |
+| **Node 22+ for the dev workflow**                                                    | The SDK itself is browser-only, but the build tooling (Vite, Vitest) needs Node 22 or 24 (CI matrix).        |
 
 To confirm WebGPU is enabled in your browser, open the DevTools console and run:
 
