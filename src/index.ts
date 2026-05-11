@@ -17,8 +17,8 @@ export type {
   RerankPipeline,
   RankedDocument,
 } from "./tasks/reranker";
-export { LMTask } from "./tasks/lm-task";
-export type { LMTaskCreateOptions } from "./tasks/lm-task";
+export { LMTask, resolveBackend } from "./tasks/lm-task";
+export type { LMTaskCreateOptions, BackendChoice } from "./tasks/lm-task";
 
 export { ChatReply, CompletionResult } from "./results";
 
@@ -55,6 +55,8 @@ export {
 
 export type { Engine } from "./core/engine";
 export { WorkerEngine } from "./core/worker-engine";
+export { WebLLMEngine } from "./core/webllm-engine";
+export { TransformersTextEngine } from "./core/transformers-engine";
 export { createInferenceWorker } from "./worker/create-worker";
 export type { WorkerLike } from "./worker/protocol";
 

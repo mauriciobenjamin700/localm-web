@@ -104,8 +104,13 @@ export interface ModelPreset {
   quantization: string;
   /** Identifier expected by the WebLLM runtime. */
   webllmId: string;
-  /** Optional ONNX URL used by the future ORT-Web fallback (v0.5+). */
-  ortUrl?: string;
+  /**
+   * Optional HuggingFace Hub repo id used by the transformers.js fallback
+   * (v0.5+). Models without a `transformersId` cannot run on the fallback
+   * path — loading them in a browser without WebGPU raises
+   * `BackendNotAvailableError`.
+   */
+  transformersId?: string;
   /** Maximum context window in tokens. */
   contextWindow: number;
   /** Short human description. */

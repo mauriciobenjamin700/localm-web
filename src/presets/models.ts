@@ -18,6 +18,7 @@ export const MODEL_PRESETS: Readonly<Record<string, ModelPreset>> = Object.freez
     parameters: "3.8B",
     quantization: "q4f16_1",
     webllmId: "Phi-3.5-mini-instruct-q4f16_1-MLC",
+    transformersId: "onnx-community/Phi-3.5-mini-instruct-onnx-web",
     contextWindow: 4096,
     description: "Microsoft Phi-3.5 mini, INT4 quantized for browser inference.",
   },
@@ -27,6 +28,7 @@ export const MODEL_PRESETS: Readonly<Record<string, ModelPreset>> = Object.freez
     parameters: "1B",
     quantization: "q4f16_1",
     webllmId: "Llama-3.2-1B-Instruct-q4f16_1-MLC",
+    transformersId: "onnx-community/Llama-3.2-1B-Instruct",
     contextWindow: 4096,
     description: "Meta Llama 3.2 1B Instruct, INT4 quantized.",
   },
@@ -36,8 +38,20 @@ export const MODEL_PRESETS: Readonly<Record<string, ModelPreset>> = Object.freez
     parameters: "1.5B",
     quantization: "q4f16_1",
     webllmId: "Qwen2.5-1.5B-Instruct-q4f16_1-MLC",
+    transformersId: "onnx-community/Qwen2.5-1.5B-Instruct",
     contextWindow: 4096,
     description: "Alibaba Qwen 2.5 1.5B Instruct, INT4 quantized.",
+  },
+  "smollm2-360m-int8": {
+    id: "smollm2-360m-int8",
+    family: "SmolLM2",
+    parameters: "360M",
+    quantization: "q8",
+    webllmId: "SmolLM2-360M-Instruct-q4f16_1-MLC",
+    transformersId: "HuggingFaceTB/SmolLM2-360M-Instruct",
+    contextWindow: 2048,
+    description:
+      "HuggingFace SmolLM2 360M Instruct — smallest viable chat model, ideal for the fallback path on low-end devices.",
   },
 });
 
