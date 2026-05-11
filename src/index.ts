@@ -78,4 +78,4 @@ export type {
 } from "./types";
 
 /** Current package version. Updated at release time. */
-export const VERSION: string = "0.4.0";
+export const VERSION: string = "0.5.0";
